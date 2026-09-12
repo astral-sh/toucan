@@ -1,6 +1,7 @@
-use std::collections::{BTreeMap, HashSet};
+use std::collections::BTreeMap;
 
 use lang_c::{ast, span::Node};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::analyze::{Analyzer, BlockExtern, LexicalScope, Tag, storage_specifiers};
 use crate::checked::statement::ControlKind;
@@ -19,10 +20,9 @@ pub(crate) struct FunctionScope {
     pub(crate) tags: Vec<(String, Tag)>,
     pub(crate) constants: Vec<(String, IntegerValue)>,
     pub(crate) parameters: Vec<Parameter>,
-    pub(crate) register: HashSet<String>,
+    pub(crate) register: FxHashSet<String>,
     #[allow(clippy::box_collection)]
-    pub(crate) alignments:
-        Option<Box<std::collections::HashMap<String, crate::DeclarationAlignment>>>,
+    pub(crate) alignments: Option<Box<FxHashMap<String, crate::DeclarationAlignment>>>,
     pub(crate) old_style: Option<crate::old_style::Signature>,
 }
 

@@ -1,8 +1,8 @@
 //! Shared attribute spellings, feature queries, and symbol-identity constraints.
 use std::borrow::Cow;
-use std::collections::HashMap;
 
 use lang_c::span::Span;
+use rustc_hash::FxHashMap;
 use toucan_target::{Compiler, CompilerProfile, Target};
 
 use crate::{Declaration, Error, TranslationUnit};
@@ -160,8 +160,8 @@ pub(crate) fn validate_symbol_aliases<'a>(
         .declarations
         .iter()
         .map(|item| (item.name.as_str(), item))
-        .collect::<HashMap<_, _>>();
-    let mut symbols = HashMap::new();
+        .collect::<FxHashMap<_, _>>();
+    let mut symbols = FxHashMap::default();
     for (name, span) in attributed {
         let label = symbol_name(unit.target, name, declarations.get(name).copied());
         if let Some((previous, _)) = symbols.insert(label, (name, span))

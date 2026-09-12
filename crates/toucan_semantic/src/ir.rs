@@ -1,6 +1,7 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::BTreeMap;
 use std::num::NonZeroU32;
 
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Serialize, Serializer, ser::SerializeStruct};
 use toucan_target::{self as target, Target};
 
@@ -742,7 +743,7 @@ impl TranslationUnit {
     /// remain available on the original type.
     pub fn resolve<'a>(&'a self, ty: &'a Type) -> Result<&'a Type, Error> {
         let mut ty = ty;
-        let mut visited = HashSet::new();
+        let mut visited = FxHashSet::default();
         while let TypeKind::Typedef(name) = &ty.kind {
             if visited.len() >= 128 {
                 return Err(Error::new(
@@ -764,7 +765,13 @@ impl TranslationUnit {
     /// Computes target layout, rejecting incomplete or recursively embedded types.
     pub fn layout(&self, ty: &Type) -> Result<target::Layout, Error> {
         self.profile()?;
-        let lowered = self.layout_type(ty, &mut HashSet::new(), &mut HashMap::new(), 0, true)?;
+        let lowered = self.layout_type(
+            ty,
+            &mut FxHashSet::default(),
+            &mut FxHashMap::default(),
+            0,
+            true,
+        )?;
         let mut layout = self
             .profile()?
             .layout(&lowered)
@@ -843,8 +850,8 @@ impl TranslationUnit {
         }
         let ty = self.layout_type(
             &field.ty,
-            &mut HashSet::new(),
-            &mut HashMap::new(),
+            &mut FxHashSet::default(),
+            &mut FxHashMap::default(),
             0,
             false,
         )?;
@@ -869,8 +876,8 @@ impl TranslationUnit {
     fn layout_type(
         &self,
         ty: &Type,
-        active: &mut HashSet<usize>,
-        cache: &mut HashMap<usize, target::Layout>,
+        active: &mut FxHashSet<usize>,
+        cache: &mut FxHashMap<usize, target::Layout>,
         depth: usize,
         expand_record: bool,
     ) -> Result<target::Type, Error> {

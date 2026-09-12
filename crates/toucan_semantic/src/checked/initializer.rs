@@ -1,9 +1,8 @@
 //! Owned initializer trees. Entries preserve written override order, not the
 //! evaluation order of side effects. Ranges and implicit zero-fill stay symbolic.
 
-use std::collections::HashMap;
-
 use lang_c::{ast, span::Node};
+use rustc_hash::FxHashMap;
 use serde::Serialize;
 
 use super::expression::{ExprId, ExprKind};
@@ -107,7 +106,7 @@ enum State {
 
 #[derive(Default)]
 pub(crate) struct InitializerBuilder {
-    states: HashMap<OccurrenceId, State>,
+    states: FxHashMap<OccurrenceId, State>,
 }
 
 #[derive(Debug, Serialize)]
@@ -436,6 +435,8 @@ impl Analyzer {
 
 #[cfg(test)]
 mod tests {
+    use rustc_hash::FxHashSet;
+
     use super::*;
     use crate::analyze::analyze_inner;
     use crate::checked::{CheckedCode, Limits};
@@ -465,7 +466,7 @@ mod tests {
                 .iter()
                 .all(|initializer| !matches!(initializer.kind, InitializerKind::Pending))
         );
-        let mut seen = std::collections::HashSet::new();
+        let mut seen = FxHashSet::default();
         assert!(
             code.initializers
                 .iter()

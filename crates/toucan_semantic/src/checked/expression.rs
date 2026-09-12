@@ -1,8 +1,7 @@
 //! Owned expression facts and operand conversions, linked to retained initializers.
 
-use std::collections::HashMap;
-
 use lang_c::{ast, span::Node};
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Serialize;
 
 use super::{
@@ -586,17 +585,17 @@ struct ExpressionProperties {
 #[derive(Default)]
 pub(super) struct ExpressionBuilder {
     // Capture lexical promises before later operands introduce declarations.
-    noreturn_names: std::collections::HashSet<OccurrenceId>,
+    noreturn_names: FxHashSet<OccurrenceId>,
     pub(super) query_summaries: Vec<super::query::QuerySummary>,
-    states: HashMap<OccurrenceId, State>,
-    assignments: HashMap<(ExprId, TypeId), AssignmentId>,
-    statement_results: HashMap<OccurrenceId, Option<ExprId>>,
-    alignment_origins: HashMap<ExprId, crate::alignof::OriginId>,
+    states: FxHashMap<OccurrenceId, State>,
+    assignments: FxHashMap<(ExprId, TypeId), AssignmentId>,
+    statement_results: FxHashMap<OccurrenceId, Option<ExprId>>,
+    alignment_origins: FxHashMap<ExprId, crate::alignof::OriginId>,
 }
 
 impl Builder {
     pub(super) fn finish_expression_coverage(&mut self) -> Result<(), Error> {
-        let mut represented = HashMap::new();
+        let mut represented = FxHashMap::default();
         for (index, expression) in self.code.expressions.iter().enumerate() {
             let id = ExprId(index as u32);
             let extra = match expression.kind {
@@ -2278,7 +2277,7 @@ mod tests {
                 .iter()
                 .any(|coverage| matches!(coverage.status, Coverage::Missing))
         );
-        let mut seen = std::collections::HashSet::new();
+        let mut seen = FxHashSet::default();
         assert!(
             code.expressions
                 .iter()
@@ -2665,7 +2664,7 @@ mod tests {
             "int value; int *address = &value; void f(void) {extern int value; int *local = &value;}",
             Target::X86_64UnknownLinuxGnu,
         );
-        let entities: std::collections::HashSet<_> = code
+        let entities: FxHashSet<_> = code
             .expressions
             .iter()
             .filter_map(|expression| match expression.kind {

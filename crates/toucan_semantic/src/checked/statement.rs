@@ -1,9 +1,8 @@
 //! Owned checked function bodies. Control-flow references identify their actual
 //! enclosing statements; expressions preserve evaluation context on each use.
 
-use std::collections::HashMap;
-
 use lang_c::{ast, span::Node};
+use rustc_hash::FxHashMap;
 use serde::Serialize;
 
 use super::expression::{Conversion, ExprUse, UseContext};
@@ -252,18 +251,18 @@ pub(crate) enum ControlKind {
 
 #[derive(Default)]
 pub(super) struct StatementBuilder {
-    ids: HashMap<OccurrenceId, StatementId>,
+    ids: FxHashMap<OccurrenceId, StatementId>,
     active: Vec<StatementId>,
     controls: Vec<(ControlKind, StatementId)>,
-    declaration_groups: HashMap<OccurrenceId, DeclarationGroupId>,
-    assertions: HashMap<OccurrenceId, AssertionId>,
-    assemblies: HashMap<StatementId, Assembly>,
+    declaration_groups: FxHashMap<OccurrenceId, DeclarationGroupId>,
+    assertions: FxHashMap<OccurrenceId, AssertionId>,
+    assemblies: FxHashMap<StatementId, Assembly>,
     function: Option<ActiveFunction>,
 }
 
 struct ActiveFunction {
     declaration: SiteId,
-    labels: HashMap<String, StatementId>,
+    labels: FxHashMap<String, StatementId>,
     gotos: Vec<StatementId>,
 }
 
@@ -473,7 +472,7 @@ impl Builder {
             })?;
         self.statement_builder.function = Some(ActiveFunction {
             declaration,
-            labels: HashMap::new(),
+            labels: FxHashMap::default(),
             gotos: Vec::new(),
         });
         Ok(())

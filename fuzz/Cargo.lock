@@ -257,6 +257,7 @@ dependencies = [
 name = "toucan_bindings"
 version = "0.0.1"
 dependencies = [
+ "rustc-hash",
  "serde",
  "thiserror",
  "toucan_semantic",
@@ -289,6 +290,7 @@ dependencies = [
 name = "toucan_semantic"
 version = "0.0.1"
 dependencies = [
+ "rustc-hash",
  "rustc_apfloat",
  "serde",
  "thiserror",

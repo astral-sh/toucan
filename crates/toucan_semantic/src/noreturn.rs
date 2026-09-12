@@ -1,6 +1,6 @@
 //! Declaration-level non-return promises without changing C function types.
 
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{Error, Type, TypeKind, analyze::Analyzer};
 
@@ -8,8 +8,8 @@ const MAX_BINDINGS: usize = 65_536;
 
 #[derive(Default)]
 pub(crate) struct Registry {
-    file: HashSet<String>,
-    scopes: HashMap<usize, HashSet<String>>,
+    file: FxHashSet<String>,
+    scopes: FxHashMap<usize, FxHashSet<String>>,
     bindings: usize,
 }
 

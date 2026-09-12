@@ -1,8 +1,7 @@
 //! Microsoft DLL declaration storage and source-order redeclaration checks.
 
-use std::collections::{HashMap, HashSet};
-
 use lang_c::{ast, span::Span};
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Serialize;
 
 use crate::{DeclarationKind, Error, TypeKind, analyze::Analyzer};
@@ -85,22 +84,22 @@ struct Entity {
 
 struct Context {
     evaluated: bool,
-    deferred: HashSet<String>,
+    deferred: FxHashSet<String>,
 }
 
 impl Default for Context {
     fn default() -> Self {
         Self {
             evaluated: true,
-            deferred: HashSet::new(),
+            deferred: FxHashSet::default(),
         }
     }
 }
 
 #[derive(Default)]
 pub(crate) struct Registry {
-    entities: HashMap<String, Entity>,
-    scopes: HashMap<usize, HashMap<String, Option<DllStorageClass>>>,
+    entities: FxHashMap<String, Entity>,
+    scopes: FxHashMap<usize, FxHashMap<String, Option<DllStorageClass>>>,
     context: Context,
     parents: Vec<Context>,
     deferred_bytes: usize,
@@ -400,7 +399,7 @@ impl Analyzer {
                 &mut registry.context,
                 Context {
                     evaluated,
-                    deferred: HashSet::new(),
+                    deferred: FxHashSet::default(),
                 },
             ));
         }

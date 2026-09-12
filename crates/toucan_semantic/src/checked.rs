@@ -75,13 +75,14 @@ pub use target::{
     TargetAttribute,
 };
 
-use std::collections::{BTreeMap, HashMap};
-use std::hash::{BuildHasher, RandomState};
+use std::collections::BTreeMap;
+use std::hash::BuildHasher;
 use std::ops::Range;
 
 use lang_c::ast;
 use lang_c::span::{Node, Span};
 use lang_c::visit::{self, Visit};
+use rustc_hash::{FxBuildHasher, FxHashMap};
 use serde::Serialize;
 
 use crate::{Declaration, DeclarationKind, Error, FlexibleArrayStorage, Type, TypeKind};
@@ -472,13 +473,12 @@ pub(crate) struct Builder {
     expression_builder: expression::ExpressionBuilder,
     code: CheckedCode,
     budget: Budget,
-    addresses: HashMap<(OccurrenceKind, usize, usize, usize), OccurrenceId>,
-    aliases: HashMap<(OccurrenceKind, usize, usize), Alias>,
+    addresses: FxHashMap<(OccurrenceKind, usize, usize, usize), OccurrenceId>,
+    aliases: FxHashMap<(OccurrenceKind, usize, usize), Alias>,
     ambiguous_spans: Vec<Span>,
-    entities: HashMap<EntityKey, EntityId>,
-    names: HashMap<ScopeId, HashMap<String, EntityId>>,
-    type_hashes: HashMap<u64, Vec<TypeId>>,
-    hasher: RandomState,
+    entities: FxHashMap<EntityKey, EntityId>,
+    names: FxHashMap<ScopeId, FxHashMap<String, EntityId>>,
+    type_hashes: FxHashMap<u64, Vec<TypeId>>,
     current: ScopeId,
     /// A function's synthetic declaration is the same written definition.
     pub(crate) definition: Option<OccurrenceId>,
@@ -535,13 +535,12 @@ impl Builder {
                 edges: 0,
                 payload_bytes: 0,
             },
-            addresses: HashMap::new(),
-            aliases: HashMap::new(),
+            addresses: FxHashMap::default(),
+            aliases: FxHashMap::default(),
             ambiguous_spans: Vec::new(),
-            entities: HashMap::new(),
-            names: HashMap::new(),
-            type_hashes: HashMap::new(),
-            hasher: RandomState::new(),
+            entities: FxHashMap::default(),
+            names: FxHashMap::default(),
+            type_hashes: FxHashMap::default(),
             current: ScopeId(0),
             definition: None,
             error: None,
@@ -680,7 +679,7 @@ impl Builder {
     }
 
     pub(crate) fn intern_type(&mut self, ty: &Type, offset: usize) -> Result<TypeId, Error> {
-        let hash = self.hasher.hash_one(ty);
+        let hash = FxBuildHasher.hash_one(ty);
         if let Some(ids) = self.type_hashes.get(&hash) {
             for id in ids {
                 if self.code.types[id.index()] == *ty {

@@ -1,8 +1,8 @@
 //! Atomic object storage and the separate scalar FFI value boundary.
 
-use std::collections::HashMap;
 use std::fmt::Write;
 
+use rustc_hash::FxHashMap;
 use toucan_semantic::{IntegerKind, Qualifiers, Type, TypeKind};
 use toucan_target::Compiler;
 
@@ -24,7 +24,7 @@ pub(super) enum Representation {
 
 #[derive(Default)]
 pub(super) struct Atomics {
-    indices: HashMap<Key, usize>,
+    indices: FxHashMap<Key, usize>,
     representations: Vec<(Key, Representation)>,
     /// Filled only when a selected type contains atomic storage.
     records: Vec<Option<bool>>,

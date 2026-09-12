@@ -1,11 +1,10 @@
 //! Written type references and record-member declaration identities.
 
-use std::collections::HashSet;
-
 use lang_c::{
     ast,
     span::{Node, Span},
 };
+use rustc_hash::FxHashSet;
 use serde::Serialize;
 
 use super::{
@@ -33,8 +32,8 @@ pub struct Reference {
 
 #[derive(Default)]
 pub(super) struct ReferenceBuilder {
-    pub(super) standalone_tags: HashSet<(OccurrenceKind, usize, usize)>,
-    seen: HashSet<(EntityId, ScopeId, usize, usize)>,
+    pub(super) standalone_tags: FxHashSet<(OccurrenceKind, usize, usize)>,
+    seen: FxHashSet<(EntityId, ScopeId, usize, usize)>,
 }
 
 impl Builder {

@@ -1,5 +1,13 @@
 //! Identifier-list definitions keep entry types separate from canonical prototypes.
 
+use std::collections::BTreeMap;
+
+use lang_c::{
+    ast,
+    span::{Node, Span},
+};
+use rustc_hash::FxHashMap;
+
 use crate::analyze::{Analyzer, LexicalScope};
 use crate::checked::{
     DeclarationGroupId, OccurrenceId, OccurrenceKind, ScopeId, ScopeKind, SiteId,
@@ -7,11 +15,6 @@ use crate::checked::{
 use crate::integer::{integer_to_type, promote};
 use crate::parameters::ParameterSyntax;
 use crate::{Error, FloatKind, Qualifiers, Type, TypeKind};
-use lang_c::{
-    ast,
-    span::{Node, Span},
-};
-use std::collections::{BTreeMap, HashMap};
 
 const MAX_PARAMETERS: usize = 65_536;
 const MAX_METADATA_BYTES: usize = 64 * 1024 * 1024;
@@ -72,7 +75,8 @@ impl Analyzer {
                 "old-style definition exceeds the 65536-parameter limit",
             ));
         }
-        let mut indices = HashMap::with_capacity(identifiers.len());
+        let mut indices =
+            FxHashMap::with_capacity_and_hasher(identifiers.len(), Default::default());
         for (index, identifier) in identifiers.iter().enumerate() {
             if self.unit.typedefs.contains_key(&identifier.node.name) {
                 return Err(Error::new(

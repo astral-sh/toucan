@@ -1,12 +1,13 @@
 //! Runtime dimensions belong to checked type uses, not canonical type shapes.
 //! A bound is a static source site; `Required` never means unconditional execution.
 
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::BTreeMap;
 
 use lang_c::{
     ast,
     span::{Node, Span},
 };
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Serialize;
 
 use super::expression::{Binary, Conversion, ExprId, ExprKind, Unary};
@@ -134,12 +135,12 @@ enum ParameterAdjustment {
 }
 #[derive(Default)]
 pub(super) struct BoundsBuilder {
-    plain: HashMap<TypeId, TypeUseId>,
-    starts: HashMap<OccurrenceId, usize>,
-    entities: HashMap<EntityId, TypeUseId>,
-    pending: HashMap<(ScopeId, String), TypeUseId>,
-    parameters: HashMap<OccurrenceId, (TypeUseId, Option<ParameterAdjustment>)>,
-    type_names: HashMap<(usize, usize), TypeUseId>,
+    plain: FxHashMap<TypeId, TypeUseId>,
+    starts: FxHashMap<OccurrenceId, usize>,
+    entities: FxHashMap<EntityId, TypeUseId>,
+    pending: FxHashMap<(ScopeId, String), TypeUseId>,
+    parameters: FxHashMap<OccurrenceId, (TypeUseId, Option<ParameterAdjustment>)>,
+    type_names: FxHashMap<(usize, usize), TypeUseId>,
 }
 
 impl Builder {
@@ -205,7 +206,7 @@ impl Builder {
                 .map(|extent| extent.bound)
                 .collect();
             let mut ranges = Vec::new();
-            let mut seen: HashSet<_> = required.iter().copied().collect();
+            let mut seen: FxHashSet<_> = required.iter().copied().collect();
             let mut cursor = 0;
             while cursor < required.len() {
                 let bound = &self.code.bounds[required[cursor].index()];
