@@ -24,7 +24,8 @@ pub struct ParseLimits {
     /// Bytes retained in the parser's token buffer, including spare capacity.
     /// This excludes the AST and is not an allocator RSS measurement.
     pub max_cache_bytes: u64,
-    /// Live construction-metric entries. Completed external declarations release their children.
+    /// Live construction-metric entries plus experimental expression-arena nodes.
+    /// Completed external declarations release their child metrics.
     pub max_metadata_entries: usize,
 }
 
@@ -105,6 +106,7 @@ pub(crate) struct Budget {
     verify_uncached: bool,
     nodes: ::rustc_hash::FxHashMap<(u8, usize, usize), Measurement>,
     external_nodes: ::rustc_hash::FxHashMap<(usize, usize), Measurement>,
+    arena_nodes: usize,
 }
 
 impl Budget {
@@ -120,6 +122,7 @@ impl Budget {
             verify_uncached: false,
             nodes: ::rustc_hash::FxHashMap::default(),
             external_nodes: ::rustc_hash::FxHashMap::default(),
+            arena_nodes: 0,
         }
     }
 
@@ -226,6 +229,28 @@ impl Budget {
             return Err("parser resource limit");
         }
         self.statistics.maximum_ast_depth = self.statistics.maximum_ast_depth.max(depth);
+        Ok(())
+    }
+
+    /// Charge a live arena node alongside cached construction measurements.
+    pub(crate) fn arena_node(&mut self, offset: usize) -> Result<(), &'static str> {
+        let count = self
+            .nodes
+            .len()
+            .saturating_add(self.external_nodes.len())
+            .saturating_add(self.arena_nodes)
+            .saturating_add(1);
+        if !self.check(
+            ResourceKind::MetadataEntries,
+            offset,
+            count as u64,
+            self.limits.max_metadata_entries.min(u32::MAX as usize) as u64,
+        ) {
+            return Err("parser resource limit");
+        }
+        self.arena_nodes += 1;
+        self.statistics.maximum_metadata_entries =
+            self.statistics.maximum_metadata_entries.max(count);
         Ok(())
     }
 
@@ -345,6 +370,7 @@ impl Budget {
             .nodes
             .len()
             .saturating_add(self.external_nodes.len())
+            .saturating_add(self.arena_nodes)
             .saturating_add(usize::from(is_new));
         if !self.check(
             ResourceKind::MetadataEntries,

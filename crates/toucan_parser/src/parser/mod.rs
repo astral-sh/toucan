@@ -288,21 +288,40 @@ pub(crate) fn expression_with_limits(
     mut is_typedef: impl FnMut(&str) -> bool,
 ) -> Result<(Node<Expression>, ParseStatistics), ParseError> {
     parse(source, env, limits, false, |p| {
-        // Reuse the bounded token stream instead of scanning source or copying
-        // every typedef from the surrounding translation unit for each query.
-        for token in &p.tokens {
+        p.expression_typedefs(&mut is_typedef)?;
+        p.expression()
+    })
+}
+
+/// Parses outer expression operators into an owned arena using the same grammar.
+pub(crate) fn expression_arena_with_limits(
+    source: &str,
+    env: &mut Env,
+    limits: ParseLimits,
+    mut is_typedef: impl FnMut(&str) -> bool,
+) -> Result<(::arena::ArenaExpression, ParseStatistics), ParseError> {
+    parse(source, env, limits, false, |p| {
+        p.expression_typedefs(&mut is_typedef)?;
+        p.expression_arena()
+    })
+}
+
+impl Parser<'_, '_> {
+    /// Seeds expression-query typedefs from the existing bounded token stream.
+    fn expression_typedefs(&mut self, is_typedef: &mut impl FnMut(&str) -> bool) -> PResult<()> {
+        for token in &self.tokens {
             if token.kind == TokenKind::Identifier {
-                let name = &source[token.span.start..token.span.end];
-                if !p.budget.work(token.span.start, name.len() as u64 + 1) {
+                let name = &self.source[token.span.start..token.span.end];
+                if !self.budget.work(token.span.start, name.len() as u64 + 1) {
                     return Err(());
                 }
                 if is_typedef(name) {
-                    p.env.add_symbol(name, Symbol::Typename);
+                    self.env.add_symbol(name, Symbol::Typename);
                 }
             }
         }
-        p.expression()
-    })
+        Ok(())
+    }
 }
 
 #[cfg(test)]

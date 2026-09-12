@@ -1,36 +1,316 @@
 use super::{PResult, Parser, TokenKind};
+use arena::{self, ArenaExpression, ExprId};
 use ast::*;
 use astutil::{int_suffix, ts18661_float};
 use driver::Standard;
+use limits::Budget;
 use span::{Node, Span};
 
 // Assignment's left operand must be a unary expression. Keep this syntactic
 // distinction while parsing precedence: parentheses can make even a binary
 // expression a primary expression, whereas a bare cast is not a unary expression.
-struct Operand {
-    expression: Node<Expression>,
+struct Operand<T = Node<Expression>> {
+    expression: T,
     unary: bool,
+}
+
+/// Shares operator parsing while allowing its result to remain owned or indexed.
+trait ExpressionStorage {
+    type Expression;
+
+    fn span(expression: &Self::Expression) -> Span;
+    fn leaf(
+        &mut self,
+        expression: Node<Expression>,
+        budget: &mut Budget,
+    ) -> PResult<Self::Expression>;
+    fn binary(
+        &mut self,
+        operator: Node<BinaryOperator>,
+        lhs: Self::Expression,
+        rhs: Self::Expression,
+        budget: &mut Budget,
+    ) -> PResult<Self::Expression>;
+    fn conditional(
+        &mut self,
+        condition: Self::Expression,
+        then_expression: Option<Self::Expression>,
+        else_expression: Self::Expression,
+        span: Span,
+        budget: &mut Budget,
+    ) -> PResult<Self::Expression>;
+    fn comma(
+        &mut self,
+        expressions: Vec<Self::Expression>,
+        span: Span,
+        budget: &mut Budget,
+    ) -> PResult<Self::Expression>;
+}
+
+struct OwnedStorage;
+
+impl ExpressionStorage for OwnedStorage {
+    type Expression = Node<Expression>;
+
+    fn span(expression: &Self::Expression) -> Span {
+        expression.span
+    }
+
+    fn leaf(
+        &mut self,
+        expression: Node<Expression>,
+        _budget: &mut Budget,
+    ) -> PResult<Self::Expression> {
+        Ok(expression)
+    }
+
+    fn binary(
+        &mut self,
+        operator: Node<BinaryOperator>,
+        lhs: Self::Expression,
+        rhs: Self::Expression,
+        budget: &mut Budget,
+    ) -> PResult<Self::Expression> {
+        let span = Span::span(lhs.span.start, rhs.span.end);
+        let expression = budget
+            .node(
+                BinaryOperatorExpression {
+                    operator,
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                },
+                span,
+            )
+            .map_err(|_| ())?;
+        budget
+            .node(Expression::BinaryOperator(Box::new(expression)), span)
+            .map_err(|_| ())
+    }
+
+    fn conditional(
+        &mut self,
+        condition: Self::Expression,
+        then_expression: Option<Self::Expression>,
+        else_expression: Self::Expression,
+        span: Span,
+        budget: &mut Budget,
+    ) -> PResult<Self::Expression> {
+        let conditional = budget
+            .node(
+                ConditionalExpression {
+                    condition: Box::new(condition),
+                    then_expression: then_expression.map(Box::new),
+                    else_expression: Box::new(else_expression),
+                },
+                span,
+            )
+            .map_err(|_| ())?;
+        budget
+            .node(Expression::Conditional(Box::new(conditional)), span)
+            .map_err(|_| ())
+    }
+
+    fn comma(
+        &mut self,
+        expressions: Vec<Self::Expression>,
+        span: Span,
+        budget: &mut Budget,
+    ) -> PResult<Self::Expression> {
+        budget
+            .node(Expression::Comma(Box::new(expressions)), span)
+            .map_err(|_| ())
+    }
+}
+
+/// Carries projected owned depth without retaining construction metadata per node.
+struct ArenaHandle {
+    id: ExprId,
+    span: Span,
+    owned_depth: usize,
+}
+
+#[derive(Default)]
+struct ArenaStorage {
+    nodes: Vec<Node<arena::Expression>>,
+}
+
+impl ArenaStorage {
+    /// Reserves bounded arena storage before inserting a children-first node.
+    fn push(
+        &mut self,
+        expression: arena::Expression,
+        span: Span,
+        owned_depth: usize,
+        budget: &mut Budget,
+    ) -> PResult<ArenaHandle> {
+        budget.visit(span.start, owned_depth).map_err(|_| ())?;
+        budget.arena_node(span.start).map_err(|_| ())?;
+        if self.nodes.len() == self.nodes.capacity() {
+            let capacity = self
+                .nodes
+                .capacity()
+                .saturating_mul(2)
+                .max(4)
+                .min(budget.limits.max_metadata_entries);
+            let additional = capacity.saturating_sub(self.nodes.capacity());
+            if !budget.work(
+                span.start,
+                additional as u64 * ::std::mem::size_of::<Node<arena::Expression>>() as u64,
+            ) {
+                return Err(());
+            }
+            self.nodes.reserve_exact(additional);
+        }
+        let id = ExprId(self.nodes.len() as u32);
+        self.nodes.push(Node::new(expression, span));
+        Ok(ArenaHandle {
+            id,
+            span,
+            owned_depth,
+        })
+    }
+}
+
+impl ExpressionStorage for ArenaStorage {
+    type Expression = ArenaHandle;
+
+    fn span(expression: &Self::Expression) -> Span {
+        expression.span
+    }
+
+    fn leaf(
+        &mut self,
+        expression: Node<Expression>,
+        budget: &mut Budget,
+    ) -> PResult<Self::Expression> {
+        let measurement = budget
+            .node_measurement::<Expression>(expression.span, 1)
+            .map_err(|_| ())?
+            .expect("the owned parser caches every expression root");
+        self.push(
+            arena::Expression::Owned(expression.node),
+            expression.span,
+            measurement.depth,
+            budget,
+        )
+    }
+
+    fn binary(
+        &mut self,
+        operator: Node<BinaryOperator>,
+        lhs: Self::Expression,
+        rhs: Self::Expression,
+        budget: &mut Budget,
+    ) -> PResult<Self::Expression> {
+        let span = Span::span(lhs.span.start, rhs.span.end);
+        // Node<Expression>, enum, Box, Node<BinaryOperatorExpression>,
+        // payload, and operand Box precede each owned child Node<Expression>.
+        let depth = lhs.owned_depth.max(rhs.owned_depth).saturating_add(6);
+        self.push(
+            arena::Expression::Binary {
+                operator,
+                lhs: lhs.id,
+                rhs: rhs.id,
+            },
+            span,
+            depth,
+            budget,
+        )
+    }
+
+    fn conditional(
+        &mut self,
+        condition: Self::Expression,
+        then_expression: Option<Self::Expression>,
+        else_expression: Self::Expression,
+        span: Span,
+        budget: &mut Budget,
+    ) -> PResult<Self::Expression> {
+        let depth = condition
+            .owned_depth
+            .max(else_expression.owned_depth)
+            .saturating_add(6)
+            .max(
+                then_expression
+                    .as_ref()
+                    .map_or(0, |value| value.owned_depth.saturating_add(7)),
+            );
+        self.push(
+            arena::Expression::Conditional {
+                condition: condition.id,
+                then_expression: then_expression.map(|value| value.id),
+                else_expression: else_expression.id,
+            },
+            span,
+            depth,
+            budget,
+        )
+    }
+
+    fn comma(
+        &mut self,
+        expressions: Vec<Self::Expression>,
+        span: Span,
+        budget: &mut Budget,
+    ) -> PResult<Self::Expression> {
+        let depth = expressions
+            .iter()
+            .map(|value| value.owned_depth)
+            .max()
+            .unwrap_or(0)
+            .saturating_add(4);
+        if !budget.work(
+            span.start,
+            expressions.len() as u64 * ::std::mem::size_of::<ExprId>() as u64,
+        ) {
+            return Err(());
+        }
+        self.push(
+            arena::Expression::Comma(expressions.into_iter().map(|value| value.id).collect()),
+            span,
+            depth,
+            budget,
+        )
+    }
 }
 
 impl Parser<'_, '_> {
     pub(super) fn expression(&mut self) -> PResult<Node<Expression>> {
+        self.expression_in(&mut OwnedStorage)
+    }
+
+    /// Builds native outer operators directly into indexed storage.
+    pub(super) fn expression_arena(&mut self) -> PResult<ArenaExpression> {
+        let mut storage = ArenaStorage::default();
+        let root = self.expression_in(&mut storage)?;
+        Ok(ArenaExpression::new(storage.nodes, root.id))
+    }
+
+    fn expression_in<S: ExpressionStorage>(&mut self, storage: &mut S) -> PResult<S::Expression> {
         let start = self.position();
-        let first = self.assignment_expression()?;
+        let first = self.assignment_expression_in(storage)?;
         if !self.eat(",")? {
             return Ok(first);
         }
         let mut expressions = vec![first];
         loop {
-            expressions.push(self.assignment_expression()?);
+            expressions.push(self.assignment_expression_in(storage)?);
             if !self.eat(",")? {
                 break;
             }
         }
-        self.node(Expression::Comma(Box::new(expressions)), start)
+        storage.comma(expressions, Span::span(start, self.end()), &mut self.budget)
     }
 
     pub(super) fn assignment_expression(&mut self) -> PResult<Node<Expression>> {
-        let left = self.conditional_operand()?;
+        self.assignment_expression_in(&mut OwnedStorage)
+    }
+
+    fn assignment_expression_in<S: ExpressionStorage>(
+        &mut self,
+        storage: &mut S,
+    ) -> PResult<S::Expression> {
+        let left = self.conditional_operand_in(storage)?;
         let operator = match self.text() {
             "=" => BinaryOperator::Assign,
             "*=" => BinaryOperator::AssignMultiply,
@@ -50,76 +330,76 @@ impl Parser<'_, '_> {
         }
         let token = self.bump()?;
         let operator = self.node_span(operator, token.span)?;
-        let right = self.nested(|parser| parser.assignment_expression())?;
-        self.binary_node(operator, left.expression, right)
+        let right = self.nested(|parser| parser.assignment_expression_in(storage))?;
+        storage.binary(operator, left.expression, right, &mut self.budget)
     }
 
     pub(super) fn conditional_expression(&mut self) -> PResult<Node<Expression>> {
-        self.conditional_operand().map(|operand| operand.expression)
+        self.conditional_operand_in(&mut OwnedStorage)
+            .map(|operand| operand.expression)
     }
 
-    fn conditional_operand(&mut self) -> PResult<Operand> {
-        let condition = self.binary_expression(1)?;
+    fn conditional_operand_in<S: ExpressionStorage>(
+        &mut self,
+        storage: &mut S,
+    ) -> PResult<Operand<S::Expression>> {
+        let condition = self.binary_expression_in(1, storage)?;
         if !self.eat("?")? {
             return Ok(condition);
         }
-        let start = condition.expression.span.start;
+        let start = S::span(&condition.expression).start;
         let then_expression = if self.at(":") && self.env.extensions_gnu {
             None
         } else {
-            Some(Box::new(self.nested(|parser| parser.expression())?))
+            Some(self.nested(|parser| parser.expression_in(storage))?)
         };
         self.expect(":")?;
-        let else_expression = Box::new(self.nested(|parser| parser.conditional_expression())?);
-        let conditional = self.node(
-            ConditionalExpression {
-                condition: Box::new(condition.expression),
+        let else_expression = self
+            .nested(|parser| parser.conditional_operand_in(storage))?
+            .expression;
+        Ok(Operand {
+            expression: storage.conditional(
+                condition.expression,
                 then_expression,
                 else_expression,
-            },
-            start,
-        )?;
-        Ok(Operand {
-            expression: self.node(Expression::Conditional(Box::new(conditional)), start)?,
+                Span::span(start, self.end()),
+                &mut self.budget,
+            )?,
             unary: false,
         })
     }
 
     /// Parse operators at or above `minimum` precedence. Raising the floor for
     /// each right operand makes equal-precedence operators associate left.
-    fn binary_expression(&mut self, minimum: u8) -> PResult<Operand> {
-        let mut left = self.cast_expression()?;
+    fn binary_expression_in<S: ExpressionStorage>(
+        &mut self,
+        minimum: u8,
+        storage: &mut S,
+    ) -> PResult<Operand<S::Expression>> {
+        let operand = self.cast_expression()?;
+        let mut left = Operand {
+            expression: storage.leaf(operand.expression, &mut self.budget)?,
+            unary: operand.unary,
+        };
         while let Some((precedence, operator)) = binary_operator(self.text()) {
             if precedence < minimum {
                 break;
             }
             let token = self.bump()?;
             let operator = self.node_span(operator, token.span)?;
-            let right = self.nested(|parser| parser.binary_expression(precedence + 1))?;
+            let right =
+                self.nested(|parser| parser.binary_expression_in(precedence + 1, storage))?;
             left = Operand {
-                expression: self.binary_node(operator, left.expression, right.expression)?,
+                expression: storage.binary(
+                    operator,
+                    left.expression,
+                    right.expression,
+                    &mut self.budget,
+                )?,
                 unary: false,
             };
         }
         Ok(left)
-    }
-
-    fn binary_node(
-        &mut self,
-        operator: Node<BinaryOperator>,
-        lhs: Node<Expression>,
-        rhs: Node<Expression>,
-    ) -> PResult<Node<Expression>> {
-        let span = Span::span(lhs.span.start, rhs.span.end);
-        let expression = self.node_span(
-            BinaryOperatorExpression {
-                operator,
-                lhs: Box::new(lhs),
-                rhs: Box::new(rhs),
-            },
-            span,
-        )?;
-        self.node_span(Expression::BinaryOperator(Box::new(expression)), span)
     }
 
     /// Use token lookahead to distinguish casts from parenthesized expressions.

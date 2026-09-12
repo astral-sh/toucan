@@ -16,6 +16,13 @@ for configuration and accounting.
 
 ## Implementation
 
+`driver::parse_expression_arena` is an experimental entry point for comparing
+owned AST construction with typed-ID storage for outer binary, assignment,
+conditional, and comma operators. Complex operands, including parenthesized
+subexpressions, remain owned AST leaves. It returns an owned arena with immutable
+lookups and explicit `into_owned()` conversion. See the
+[arena experiment](../../benchmarks/arena/README.md) for coverage and measurement.
+
 The parser uses recursive descent for declarations and statements, and precedence
 climbing for expressions. The lexer and parser live in [src/parser](src/parser).
 Typedef names are tracked in lexical scopes to distinguish types from expressions.

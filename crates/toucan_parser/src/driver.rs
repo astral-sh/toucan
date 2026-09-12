@@ -7,11 +7,14 @@ use std::io;
 use std::path::Path;
 use std::process::Command;
 
+use arena::ArenaExpression;
 use ast::{Expression, TranslationUnit};
 use env::Env;
 use limits::{ParseLimits, ParseStatistics, ResourceKind, ResourceLimit, MAX_RULE_DEPTH};
 use loc;
-use parser::{expression_with_limits, translation_unit_with_limits, ParseError};
+use parser::{
+    expression_arena_with_limits, expression_with_limits, translation_unit_with_limits, ParseError,
+};
 use span::Node;
 
 /// Parser configuration
@@ -112,6 +115,20 @@ pub struct ExpressionParse {
     pub source: String,
     /// Root of the expression's abstract syntax tree.
     pub expression: Node<Expression>,
+    /// Resource counters for this parser invocation.
+    pub statistics: ParseStatistics,
+}
+
+/// An experimental expression arena, with spans relative to its owned source.
+///
+/// Binary, assignment, conditional, and comma expressions use arena IDs. Other
+/// syntax is retained in owned AST leaves; see [`ArenaExpression`] for details.
+#[derive(Debug)]
+pub struct ArenaExpressionParse {
+    /// Preprocessed source text.
+    pub source: String,
+    /// Owned arena and the root expression's ID.
+    pub expression: ArenaExpression,
     /// Resource counters for this parser invocation.
     pub statistics: ParseStatistics,
 }
@@ -277,6 +294,39 @@ pub fn parse_expression_with_limits(
         expression_with_limits(source, env, limits, is_typedef)
     })
     .map(|(source, expression, statistics)| ExpressionParse {
+        source,
+        expression,
+        statistics,
+    })
+}
+
+/// Parse exactly one preprocessed expression into experimental arena storage.
+///
+/// This uses the same grammar and typedef lookup as [`parse_expression`]. Arena
+/// nodes can be inspected without materializing a recursive AST. Conversion with
+/// [`ArenaExpression::into_owned`] allocates the corresponding owned AST nodes.
+pub fn parse_expression_arena(
+    config: &Config,
+    source: String,
+    is_typedef: impl FnMut(&str) -> bool + Send,
+) -> Result<ArenaExpressionParse, SyntaxError> {
+    parse_expression_arena_with_limits(config, source, is_typedef, ParseLimits::default())
+}
+
+/// Parse an arena expression with deterministic resource and stack limits.
+///
+/// The depth limit covers the equivalent owned AST, including syntax retained
+/// in owned leaves, so explicit conversion preserves the cleanup depth bound.
+pub fn parse_expression_arena_with_limits(
+    config: &Config,
+    source: String,
+    is_typedef: impl FnMut(&str) -> bool + Send,
+    limits: ParseLimits,
+) -> Result<ArenaExpressionParse, SyntaxError> {
+    parse_with(config, source, limits, |source, env, limits| {
+        expression_arena_with_limits(source, env, limits, is_typedef)
+    })
+    .map(|(source, expression, statistics)| ArenaExpressionParse {
         source,
         expression,
         statistics,

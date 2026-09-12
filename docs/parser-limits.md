@@ -34,6 +34,15 @@ new furthest byte. Padding a pathological expression with whitespace therefore d
 not increase its backtracking allowance. These are deterministic accounting units
 for a given parser build, not a wall-time deadline or an allocator RSS measurement.
 
+The experimental `parse_expression_arena_with_limits` entry point uses the same
+limits. Arena nodes and cached construction measurements share the metadata-entry
+quota, and arena capacity growth is charged to work before allocation. AST depth
+measures the equivalent owned tree, including retained owned leaves, so explicit
+`into_owned()` conversion preserves the cleanup depth bound. Conversion itself is
+outside parser work accounting and allocates compatibility boxes and temporary
+storage. The arena representation currently covers outer binary, assignment,
+conditional, and comma operators; it does not replace translation-unit parsing.
+
 C11 minimum nesting is tested explicitly: 63 levels of parenthesized expressions
 and declarators, 127 blocks, 63 record definitions, and 12 derived pointer modifiers.
 Conditional-inclusion depth belongs to the preprocessor. Flat bodies containing more

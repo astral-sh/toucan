@@ -15,6 +15,7 @@
 extern crate rustc_hash;
 extern crate toucan_stack;
 
+pub mod arena;
 pub mod ast;
 pub mod driver;
 pub mod limits;

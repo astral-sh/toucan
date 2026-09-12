@@ -1,0 +1,20 @@
+[package]
+name = "toucan-arena-benchmark"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.96"
+publish = false
+license = "MIT OR Apache-2.0"
+
+[workspace]
+
+[features]
+allocation-counting = []
+
+[dependencies]
+serde_json = "1"
+toucan_parser = { path = "../../crates/toucan_parser" }
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
