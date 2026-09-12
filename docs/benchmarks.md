@@ -24,7 +24,7 @@ outside measurement. These track Toucan regressions; the bindgen comparisons
 below remain separate workloads. CPU simulation measures computational work,
 not filesystem latency or end-to-end consumer build time.
 
-To run locally on Linux x86-64, install Clang 18, CMake, Tcl, Python 3.12+, and the
+To run locally on Linux x86-64, install GCC, Clang 18, CMake, Tcl, Python 3.12+, and the
 GitHub CLI, then prepare the corpus and run ordinary Criterion benchmarks:
 
 ```console
@@ -43,12 +43,55 @@ To check the same instrumented build used in CI:
 
 ```console
 cargo install cargo-codspeed --version 5.0.1 --locked
-cargo codspeed build -m simulation -m memory --features codspeed --profile profiling -p toucan_benchmark --bench bindings --locked
+cargo codspeed build -m simulation -m memory --features codspeed --profile profiling -p toucan_benchmark --bench bindings --bench parser --locked
 SOURCE_DATE_EPOCH=0 cargo codspeed run
 ```
 
 Local CodSpeed runs check that the benchmarks execute; the GitHub action collects
 and uploads the performance measurements.
+
+## Parser comparison
+
+The `parser` benchmarks compare Toucan's handwritten parser with the generated
+parser in **lang-c 0.15.1**, the upstream project from which Toucan's AST and
+visitors derive. Both parse the same GNU C11 text into an AST. The workloads
+include the four pinned public headers used above and zlib's untouched
+`adler32.c`, which also exercises function bodies and expressions.
+
+GCC preprocesses each source once, before measurement, on x86-64 GNU Linux.
+Both engines must accept the complete input and produce identical printed syntax
+trees before that workload is timed. This checks the inherited tree printers'
+output; it does not establish byte-span identity or complete semantic equivalence.
+Unsupported inputs and differing trees fail the run; sources are not rewritten
+to make the comparison pass.
+
+Each timed iteration tokenizes and constructs a fresh AST. Input cloning, AST
+destruction, file access, preprocessing, and tree comparison are outside timing.
+Both engines run on the same reused 16 MiB worker stack; creating and joining
+that worker is excluded. Toucan retains its default resource limits and accounting.
+The benchmark uses the system allocator and reports parsing time and input
+throughput. It does not measure standalone-call thread startup, type checking,
+binding generation, or compiler performance.
+
+After [preparing the corpus](#codspeed-regression-benchmarks), run:
+
+```console
+SOURCE_DATE_EPOCH=0 cargo bench -p toucan_benchmark --bench parser --locked
+```
+
+Append `-- --test` for an untimed smoke test of all ten cases. The existing
+`TOUCAN_BENCH_CORPUS` override selects a prepared corpus. `TOUCAN_BENCH_CC` selects
+GCC (default: `gcc`), which must target `x86_64-linux-gnu`. Its own resource headers
+are used; `TOUCAN_BENCH_CLANG_INCLUDE` applies only to binding benchmarks.
+
+The exact preprocessed `.i` files, compiler version, and preprocessing commands
+are saved in `benchmark-results/parser-inputs`; set `TOUCAN_BENCH_PARSER_INPUTS`
+to keep a separate capture. Criterion saves raw samples and estimates under
+`$CARGO_TARGET_DIR/criterion` (normally `target/criterion`). Preserve both outputs,
+the source revision, lockfile, build command, toolchain, CPU, and affinity when
+reporting results. These fixed-order, in-process measurements describe the named
+inputs; they do not establish a universal parser speedup. The Benchmarks workflow
+runs both engines through CodSpeed and uploads the preprocessed inputs.
 
 ## Builder API comparison
 
