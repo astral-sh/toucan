@@ -2,9 +2,9 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use toucan_semantic::TranslationUnit;
+use toucan_semantic::{TranslationUnit, Type, TypeKind};
 
-use crate::Error;
+use crate::{Emitter, Error};
 
 /// Additional typedef dependencies erased from adjusted C parameter types.
 ///
@@ -45,6 +45,32 @@ impl TypeDependencies {
                 .ok_or_else(|| Error("parameter-type dependency storage limit exceeded".into()))?;
             if !unit.typedefs.contains_key(name) {
                 return Err(Error(format!("unknown parameter-type dependency `{name}`")));
+            }
+        }
+        Ok(())
+    }
+}
+
+impl Emitter<'_> {
+    /// Retain source typedefs erased by parameter adjustment without changing ABI types.
+    /// Callers mark the owner as reached first so shared or cyclic dependencies terminate.
+    pub(super) fn collect_source_dependencies(
+        &mut self,
+        ty: &Type,
+        depth: usize,
+    ) -> Result<(), Error> {
+        let dependencies =
+            self.options
+                .type_dependencies
+                .as_ref()
+                .and_then(|dependencies| match &ty.kind {
+                    TypeKind::Typedef(name) => dependencies.typedefs.get(name),
+                    TypeKind::Record(id) => dependencies.records.get(id),
+                    _ => None,
+                });
+        if let Some(dependencies) = dependencies {
+            for alias in dependencies {
+                self.collect_at(&Type::new(TypeKind::Typedef(alias.clone())), depth + 1)?;
             }
         }
         Ok(())

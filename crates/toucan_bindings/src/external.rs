@@ -223,16 +223,7 @@ impl Emitter<'_> {
                     .dependencies
                     .insert(Key::Typedef(name.clone())) =>
             {
-                if let Some(dependencies) = self
-                    .options
-                    .type_dependencies
-                    .as_deref()
-                    .and_then(|dependencies| dependencies.typedefs.get(name))
-                {
-                    for alias in dependencies {
-                        self.collect_at(&Type::new(TypeKind::Typedef(alias.clone())), depth + 1)?;
-                    }
-                }
+                self.collect_source_dependencies(ty, depth)?;
                 let underlying = self
                     .unit
                     .typedefs
@@ -246,16 +237,7 @@ impl Emitter<'_> {
                     .records
                     .get(*id)
                     .ok_or_else(|| Error("invalid record identity".into()))?;
-                if let Some(dependencies) = self
-                    .options
-                    .type_dependencies
-                    .as_deref()
-                    .and_then(|dependencies| dependencies.records.get(id))
-                {
-                    for alias in dependencies {
-                        self.collect_at(&Type::new(TypeKind::Typedef(alias.clone())), depth + 1)?;
-                    }
-                }
+                self.collect_source_dependencies(ty, depth)?;
                 if let Some(fields) = &record.fields {
                     for field in fields {
                         self.collect_at(&field.ty, depth + 1)?;

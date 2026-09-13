@@ -1379,7 +1379,7 @@ impl Emitter<'_> {
                     && layout_required
                     && self.external.layout_aliases.insert(name.clone());
                 if first || upgrade {
-                    let ty = self
+                    let underlying = self
                         .unit
                         .typedefs
                         .get(name)
@@ -1387,40 +1387,16 @@ impl Emitter<'_> {
                     if name == "size_t" && self.options.size_t_is_usize {
                         // usize replaces this entire alias chain. Its discarded
                         // dependencies must not leak into separately generated modules.
-                        self.size_t_type(ty)?;
+                        self.size_t_type(underlying)?;
                     } else {
-                        if let Some(dependencies) = self
-                            .options
-                            .type_dependencies
-                            .as_ref()
-                            .and_then(|deps| deps.typedefs.get(name))
-                        {
-                            for alias in dependencies {
-                                self.collect_at(
-                                    &Type::new(TypeKind::Typedef(alias.clone())),
-                                    depth + 1,
-                                )?;
-                            }
-                        }
-                        self.collect_use_at(ty, depth + 1, layout_required)?;
+                        self.collect_source_dependencies(ty, depth)?;
+                        self.collect_use_at(underlying, depth + 1, layout_required)?;
                     }
                 }
             }
             TypeKind::Record(id) => {
                 if self.records.insert(*id) {
-                    if let Some(dependencies) = self
-                        .options
-                        .type_dependencies
-                        .as_ref()
-                        .and_then(|deps| deps.records.get(id))
-                    {
-                        for alias in dependencies {
-                            self.collect_at(
-                                &Type::new(TypeKind::Typedef(alias.clone())),
-                                depth + 1,
-                            )?;
-                        }
-                    }
+                    self.collect_source_dependencies(ty, depth)?;
                     let record = self
                         .unit
                         .records
