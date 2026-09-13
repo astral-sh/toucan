@@ -236,20 +236,7 @@ impl Analyzer {
             return Ok(Type::new(TypeKind::Bool));
         }
         let signature = self.c11_atomic_signature(op, call)?;
-        for (index, argument) in call.node.arguments.iter().enumerate() {
-            let destination = signature.parameters[index]
-                .as_ref()
-                .expect("C11 atomic argument");
-            let source = if let Some(source) = &signature.sources[index] {
-                source.clone()
-            } else {
-                self.value_expression_type(argument)?
-            };
-            self.check_assignment_type(destination, &source, argument)?;
-            if self.checked.is_some() {
-                self.retain_assignment(argument, destination)?;
-            }
-        }
+        self.check_atomic_arguments(call, &signature)?;
         if let Some((success, failure)) = op.memory_order_arguments() {
             self.check_atomic_order_arguments(
                 call,
