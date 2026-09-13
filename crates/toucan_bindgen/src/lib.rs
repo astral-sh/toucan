@@ -498,7 +498,7 @@ impl Builder {
         };
         parameter_dependencies::apply(
             &compilation,
-            patterns.files.as_ref(),
+            &patterns,
             occurrences
                 .as_ref()
                 .filter(|_| patterns.has_names())
