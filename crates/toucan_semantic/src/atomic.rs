@@ -344,17 +344,14 @@ impl Analyzer {
         Ok(signature)
     }
 
-    pub(crate) fn atomic_call_type(
+    /// Check operands in source order, reusing types cached by overload resolution.
+    /// GNU intrinsic conversions use their own compatibility rules; only ordinary
+    /// assignment conversions are retained here when building checked expressions.
+    pub(crate) fn check_atomic_arguments(
         &mut self,
-        op: AtomicOperation,
         call: &Node<ast::CallExpression>,
-    ) -> Result<Type, Error> {
-        let key = (call.span.start, call.span.end);
-        if op.is_lock_free_query() && self.checked_atomic_queries.contains(&key) {
-            return Ok(Type::new(TypeKind::Bool));
-        }
-        let checkpoint = self.sve_feature_checkpoint();
-        let signature = self.atomic_signature(op, call)?;
+        signature: &AtomicSignature,
+    ) -> Result<(), Error> {
         for (index, argument) in call.node.arguments.iter().enumerate() {
             let destination = signature.parameters[index]
                 .as_ref()
@@ -386,6 +383,21 @@ impl Analyzer {
                 }
             }
         }
+        Ok(())
+    }
+
+    pub(crate) fn atomic_call_type(
+        &mut self,
+        op: AtomicOperation,
+        call: &Node<ast::CallExpression>,
+    ) -> Result<Type, Error> {
+        let key = (call.span.start, call.span.end);
+        if op.is_lock_free_query() && self.checked_atomic_queries.contains(&key) {
+            return Ok(Type::new(TypeKind::Bool));
+        }
+        let checkpoint = self.sve_feature_checkpoint();
+        let signature = self.atomic_signature(op, call)?;
+        self.check_atomic_arguments(call, &signature)?;
         if op == AtomicOperation::AlwaysLockFree {
             self.atomic_query_size(call).map_err(|_| {
                 Error::new(
