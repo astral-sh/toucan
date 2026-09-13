@@ -158,6 +158,27 @@ impl Config {
         Ok(())
     }
 
+    /// Apply a command-line definition, replacing any previous definition with the
+    /// same identifier, regardless of its parameter list. Callers validate names.
+    /// When supplied, reuse the normalizer in argument order and set
+    /// [`Self::predefined_macro_mode`] to [`PredefinedMacroMode::Tokens`] afterward.
+    pub fn define_command_line(
+        &mut self,
+        name: &str,
+        value: &str,
+        normalizer: Option<&mut CommandLineMacroNormalizer>,
+    ) -> Result<(), String> {
+        let (name, value) = match normalizer {
+            Some(normalizer) => normalizer.prepare(name, value)?,
+            None => (name.to_owned(), value.to_owned()),
+        };
+        let identifier = name.split('(').next().unwrap_or(&name);
+        self.defines
+            .retain(|key, _| key.split('(').next() != Some(identifier));
+        self.defines.insert(name, value);
+        Ok(())
+    }
+
     /// Remove a predefined macro or query, as for a command-line `-U` option.
     pub fn undefine(&mut self, name: &str) {
         self.defines
