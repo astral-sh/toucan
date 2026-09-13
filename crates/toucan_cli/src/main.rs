@@ -261,56 +261,26 @@ impl Input {
     }
 }
 
+/// Select the default C target from the platform this CLI was compiled for.
+/// Linux libc, ARM hard-float, and Windows MSVC guards keep unsupported ABIs
+/// from silently inheriting a different layout; callers can supply `--target`.
 fn host_target() -> Result<Target> {
-    Target::ALL
-        .into_iter()
-        .find(|target| match target.triple() {
-            "x86_64-unknown-linux-gnu" => cfg!(all(
-                target_arch = "x86_64",
-                target_os = "linux",
-                target_env = "gnu"
-            )),
-            "i686-unknown-linux-gnu" => cfg!(all(
-                target_arch = "x86",
-                target_os = "linux",
-                target_env = "gnu"
-            )),
-            "armv7-unknown-linux-gnueabihf" => cfg!(all(
-                target_arch = "arm",
-                target_os = "linux",
-                target_env = "gnu",
-                target_abi = "eabihf"
-            )),
-            "aarch64-unknown-linux-gnu" => cfg!(all(
-                target_arch = "aarch64",
-                target_os = "linux",
-                target_env = "gnu"
-            )),
-            "x86_64-unknown-linux-musl" => cfg!(all(
-                target_arch = "x86_64",
-                target_os = "linux",
-                target_env = "musl"
-            )),
-            "aarch64-unknown-linux-musl" => cfg!(all(
-                target_arch = "aarch64",
-                target_os = "linux",
-                target_env = "musl"
-            )),
-            "x86_64-apple-darwin" => cfg!(all(target_arch = "x86_64", target_os = "macos")),
-            "aarch64-apple-darwin" => cfg!(all(target_arch = "aarch64", target_os = "macos")),
-            "x86_64-pc-windows-msvc" => cfg!(all(
-                target_arch = "x86_64",
-                target_os = "windows",
-                target_env = "msvc"
-            )),
-            "aarch64-pc-windows-msvc" => cfg!(all(
-                target_arch = "aarch64",
-                target_os = "windows",
-                target_env = "msvc"
-            )),
-            _ => false,
-        })
-        .context("the host target is unsupported; supply --target explicitly")
+    match (std::env::consts::ARCH, std::env::consts::OS) {
+        ("x86_64", "linux") if cfg!(target_env = "gnu") => Some(Target::X86_64UnknownLinuxGnu),
+        ("x86", "linux") if cfg!(target_env = "gnu") => Some(Target::I686UnknownLinuxGnu),
+        ("arm", "linux") if cfg!(all(target_env = "gnu", target_abi = "eabihf")) => {
+            Some(Target::Armv7UnknownLinuxGnueabihf)
+        }
+        ("aarch64", "linux") if cfg!(target_env = "gnu") => Some(Target::Aarch64UnknownLinuxGnu),
+        ("x86_64", "linux") if cfg!(target_env = "musl") => Some(Target::X86_64UnknownLinuxMusl),
+        ("aarch64", "linux") if cfg!(target_env = "musl") => Some(Target::Aarch64UnknownLinuxMusl),
+        ("x86_64", "macos") => Some(Target::X86_64AppleDarwin),
+        ("aarch64", "macos") => Some(Target::Aarch64AppleDarwin),
+        ("x86_64", "windows") if cfg!(target_env = "msvc") => Some(Target::X86_64PcWindowsMsvc),
+        ("aarch64", "windows") if cfg!(target_env = "msvc") => Some(Target::Aarch64PcWindowsMsvc),
+        _ => None,
+    }
+    .context("the host target is unsupported; supply --target explicitly")
 }
 
 fn write_output(path: Option<PathBuf>, source: &str) -> Result<()> {
