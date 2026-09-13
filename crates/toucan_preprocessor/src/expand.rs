@@ -22,13 +22,7 @@ pub(crate) struct Expansion<'a> {
 impl Expansion<'_> {
     /// Rescan replacements together with remaining input, preserving token hide sets.
     pub(crate) fn expand(&mut self, tokens: Vec<Token>) -> Result<Vec<Token>, String> {
-        if self.recursion >= self.config.max_expansion_depth {
-            return Err("macro argument expansion depth limit exceeded".into());
-        }
-        self.recursion += 1;
-        let result = self.expand_inner::<false, false, false>(&mut tokens.into());
-        self.recursion -= 1;
-        result
+        self.expand_bounded::<false, false, false>(&mut tokens.into())
     }
 
     /// Stop before expanding tokens that follow a pragma changing macro state.
@@ -36,13 +30,7 @@ impl Expansion<'_> {
         &mut self,
         pending: &mut VecDeque<Token>,
     ) -> Result<Vec<Token>, String> {
-        if self.recursion >= self.config.max_expansion_depth {
-            return Err("macro argument expansion depth limit exceeded".into());
-        }
-        self.recursion += 1;
-        let result = self.expand_inner::<false, true, false>(pending);
-        self.recursion -= 1;
-        result
+        self.expand_bounded::<false, true, false>(pending)
     }
 
     /// Yield condition operators so they observe preceding pragma effects.
@@ -50,23 +38,12 @@ impl Expansion<'_> {
         &mut self,
         pending: &mut VecDeque<Token>,
     ) -> Result<Vec<Token>, String> {
-        if self.recursion >= self.config.max_expansion_depth {
-            return Err("macro argument expansion depth limit exceeded".into());
-        }
-        self.recursion += 1;
-        let result = self.expand_inner::<false, true, true>(pending);
-        self.recursion -= 1;
-        result
+        self.expand_bounded::<false, true, true>(pending)
     }
 
     /// Expands one output token while leaving the remaining rescan stream intact.
     fn expand_first(&mut self, pending: &mut VecDeque<Token>) -> Result<Option<Token>, String> {
-        if self.recursion >= self.config.max_expansion_depth {
-            return Err("macro argument expansion depth limit exceeded".into());
-        }
-        self.recursion += 1;
-        let result = self.expand_inner::<true, false, false>(pending);
-        self.recursion -= 1;
+        let result = self.expand_bounded::<true, false, false>(pending);
         result.map(|tokens| {
             let mut tokens = tokens.into_iter();
             let first = tokens.next();
@@ -75,6 +52,21 @@ impl Expansion<'_> {
             }
             first
         })
+    }
+
+    /// Check the argument-expansion depth limit before consuming pending tokens.
+    /// Every rescan mode restores the caller's recursion depth, including on errors.
+    fn expand_bounded<const FIRST: bool, const STOP_ON_PRAGMA: bool, const CONDITION: bool>(
+        &mut self,
+        pending: &mut VecDeque<Token>,
+    ) -> Result<Vec<Token>, String> {
+        if self.recursion >= self.config.max_expansion_depth {
+            return Err("macro argument expansion depth limit exceeded".into());
+        }
+        self.recursion += 1;
+        let result = self.expand_inner::<FIRST, STOP_ON_PRAGMA, CONDITION>(pending);
+        self.recursion -= 1;
+        result
     }
 
     fn expand_inner<const FIRST: bool, const STOP_ON_PRAGMA: bool, const CONDITION: bool>(
