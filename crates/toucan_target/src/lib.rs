@@ -281,13 +281,8 @@ impl Target {
                     .fields
                     .iter()
                     .map(|field| {
-                        if field.bit_width.is_some() && !field.ty.is_integer() {
-                            return Err(LayoutError::NonIntegerBitfield);
-                        }
-                        if matches!(field.ty.integer_builtin(), Some(BuiltinType::Bool))
-                            && field.bit_width.is_some_and(|width| width > 1)
-                        {
-                            return Err(LayoutError::BooleanBitfieldWidth);
+                        if let Some(width) = field.bit_width {
+                            field.ty.check_bitfield_type(width)?;
                         }
                         Ok(abi::RecordField {
                             layout: None,
@@ -411,29 +406,22 @@ impl Type {
         Self::builtin(BuiltinType::Pointer)
     }
 
-    fn integer_builtin(&self) -> Option<BuiltinType> {
+    /// Checks integer or enum eligibility through bounded typedef chains.
+    /// `_Bool` permits at most one value bit; other widths are checked by the ABI engine.
+    fn check_bitfield_type(&self, width: u64) -> Result<(), LayoutError> {
         let mut current = self;
         for _ in 0..256 {
             match &current.variant {
-                TypeVariant::Builtin(builtin) if builtin.is_integer() => return Some(*builtin),
+                TypeVariant::Enum(_) => return Ok(()),
+                TypeVariant::Builtin(BuiltinType::Bool) if width > 1 => {
+                    return Err(LayoutError::BooleanBitfieldWidth);
+                }
+                TypeVariant::Builtin(builtin) if builtin.is_integer() => return Ok(()),
                 TypeVariant::Typedef(inner) => current = inner,
-                _ => return None,
+                _ => break,
             }
         }
-        None
-    }
-
-    fn is_integer(&self) -> bool {
-        let mut current = self;
-        for _ in 0..256 {
-            match &current.variant {
-                TypeVariant::Enum(_) => return true,
-                TypeVariant::Builtin(builtin) => return builtin.is_integer(),
-                TypeVariant::Typedef(inner) => current = inner,
-                _ => return false,
-            }
-        }
-        false
+        Err(LayoutError::NonIntegerBitfield)
     }
 }
 
