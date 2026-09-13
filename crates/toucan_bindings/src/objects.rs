@@ -306,6 +306,24 @@ impl<'unit> Emitter<'unit> {
         Ok(ty)
     }
 
+    /// Emit a foreign static with its selected occurrence's type and configured linker symbol.
+    /// The caller supplies the Rust name and owns the surrounding foreign block.
+    pub(crate) fn emit_static(
+        &self,
+        declaration: &Declaration,
+        name: &str,
+        ty: &Type,
+        source: &mut String,
+    ) -> Result<(), Error> {
+        let symbol = self.options.link_name(declaration, self.unit.target);
+        if name != symbol {
+            writeln!(source, "    #[link_name = {symbol:?}]").unwrap();
+        }
+        let mutable = if self.is_const(ty)? { "" } else { "mut " };
+        writeln!(source, "    pub static {mutable}{name}: {};", self.ty(ty)?).unwrap();
+        Ok(())
+    }
+
     /// Validate every extra occurrence independently of the primary projection.
     pub(crate) fn prepare_additional_objects(&mut self) -> Result<(), Error> {
         for object in self.options.additional_objects.values() {
@@ -374,17 +392,8 @@ impl<'unit> Emitter<'unit> {
             };
             writeln!(source, "{keyword} \"C\" {{").unwrap();
             self.declaration_doc(object.name(), source);
-            let symbol = self.options.link_name(declaration, self.unit.target);
-            if name != symbol {
-                writeln!(source, "    #[link_name = {symbol:?}]").unwrap();
-            }
-            let mutable = if self.is_const(ty)? { "" } else { "mut " };
-            writeln!(
-                source,
-                "    pub static {mutable}{name}: {};\n}}",
-                self.ty(ty)?
-            )
-            .unwrap();
+            self.emit_static(declaration, &name, ty, source)?;
+            source.push_str("}\n");
         }
         Ok(())
     }
