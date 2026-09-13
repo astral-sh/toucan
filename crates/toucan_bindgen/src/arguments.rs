@@ -230,23 +230,10 @@ fn apply_short(
             if name.is_empty() || name.contains(['\n', '\r']) {
                 return Err(error("invalid macro name"));
             }
-            let prepared = macros
-                .as_mut()
-                .map(|macros| macros.prepare(name, value))
-                .transpose()
+            config
+                .preprocessor
+                .define_command_line(name, value, macros.as_mut())
                 .map_err(error)?;
-            let (name, value) = prepared.as_ref().map_or((name, value), |(name, value)| {
-                (name.as_str(), value.as_str())
-            });
-            let identifier = name.split('(').next().unwrap_or(name);
-            config
-                .preprocessor
-                .defines
-                .retain(|key, _| key.split('(').next() != Some(identifier));
-            config
-                .preprocessor
-                .defines
-                .insert(name.into(), value.into());
         }
         "-U" => config.preprocessor.undefine(operand),
         _ => unreachable!(),

@@ -232,23 +232,10 @@ impl Input {
                 let (_, define) = defines.next().expect("peeked definition");
                 let (name, value) = define.split_once('=').unwrap_or((define, "1"));
                 anyhow::ensure!(!name.is_empty(), "macro name must not be empty");
-                let prepared = macros
-                    .as_mut()
-                    .map(|macros| macros.prepare(name, value))
-                    .transpose()
+                config
+                    .preprocessor
+                    .define_command_line(name, value, macros.as_mut())
                     .map_err(anyhow::Error::msg)?;
-                let (name, value) = prepared.as_ref().map_or((name, value), |(name, value)| {
-                    (name.as_str(), value.as_str())
-                });
-                let identifier = name.split('(').next().unwrap_or(name);
-                config
-                    .preprocessor
-                    .defines
-                    .retain(|key, _| key.split('(').next() != Some(identifier));
-                config
-                    .preprocessor
-                    .defines
-                    .insert(name.into(), value.into());
             } else {
                 let (_, name) = undefines.next().expect("peeked undefinition");
                 config.preprocessor.undefine(name);
