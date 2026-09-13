@@ -965,21 +965,12 @@ fn generate_with_work_budget(
                         declaration.name,
                     )));
                 }
-                let link_name = options.link_name(declaration, unit.target);
-                if name != link_name {
-                    writeln!(source, "    #[link_name = {link_name:?}]").unwrap();
-                }
-                let mutable = if emitter.is_const(emitter.object_type(declaration)?)? {
-                    ""
-                } else {
-                    "mut "
-                };
-                writeln!(
-                    source,
-                    "    pub static {mutable}{name}: {};",
-                    emitter.ty(emitter.object_type(declaration)?)?
-                )
-                .unwrap();
+                emitter.emit_static(
+                    declaration,
+                    &name,
+                    emitter.object_type(declaration)?,
+                    &mut source,
+                )?;
             }
         }
     }
