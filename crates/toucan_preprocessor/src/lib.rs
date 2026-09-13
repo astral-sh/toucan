@@ -1381,6 +1381,9 @@ impl Preprocessor {
         Ok(())
     }
 
+    /// Apply preprocessing pragma effects and preserve layout directives.
+    /// The Microsoft `warning`, `prefast`, `deprecated`, `intrinsic`, and `function`
+    /// pragmas validate macro-expanded operands before being discarded.
     fn pragma(
         &mut self,
         input: InputFile<'_>,
@@ -1455,37 +1458,22 @@ impl Preprocessor {
                 }
             }
             Some("message") => {}
-            Some("warning") => {
-                // MSVC expands pragma arguments: its runtime headers use a
-                // macro expanding to a list of warning numbers here.
+            Some(pragma @ ("warning" | "prefast" | "deprecated" | "intrinsic" | "function")) => {
+                // Runtime headers use macros for lists of warning numbers or names.
                 let expanded = self.expand_at(origin.path.as_ref(), tokens[1..].to_vec())?;
-                if !msvc_warning_pragma(&expanded) {
-                    return Err(fail(&format!("unsupported pragma: {}", render(tokens))));
-                }
-            }
-            Some("prefast") => {
-                // PREfast pragmas control static-analysis warnings, including
-                // their push/pop stack. No such diagnostics are emitted here.
-                let expanded = self.expand_at(origin.path.as_ref(), tokens[1..].to_vec())?;
-                if !msvc_prefast_pragma(&expanded) {
-                    return Err(fail(&format!("unsupported pragma: {}", render(tokens))));
-                }
-            }
-            Some("deprecated") => {
-                // MSVC warns on uses of these names (including macro names),
-                // without attaching deprecation attributes to declarations.
-                let expanded = self.expand_at(origin.path.as_ref(), tokens[1..].to_vec())?;
-                if !msvc_name_list(&expanded, |name| {
-                    name.kind == Kind::Identifier || quoted_identifier(name).is_some()
-                }) {
-                    return Err(fail(&format!("unsupported pragma: {}", render(tokens))));
-                }
-            }
-            Some("intrinsic" | "function") => {
-                // These control code generation for calls in C function bodies;
-                // they do not affect the declarations emitted as bindings.
-                let expanded = self.expand_at(origin.path.as_ref(), tokens[1..].to_vec())?;
-                if !msvc_name_list(&expanded, |name| name.kind == Kind::Identifier) {
+                let valid = match pragma {
+                    "warning" => msvc_warning_pragma(&expanded),
+                    "prefast" => msvc_prefast_pragma(&expanded),
+                    // Name-based deprecation does not add declaration attributes.
+                    "deprecated" => msvc_name_list(&expanded, |name| {
+                        name.kind == Kind::Identifier || quoted_identifier(name).is_some()
+                    }),
+                    "intrinsic" | "function" => {
+                        msvc_name_list(&expanded, |name| name.kind == Kind::Identifier)
+                    }
+                    _ => unreachable!(),
+                };
+                if !valid {
                     return Err(fail(&format!("unsupported pragma: {}", render(tokens))));
                 }
             }
