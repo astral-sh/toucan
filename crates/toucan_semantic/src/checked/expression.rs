@@ -186,6 +186,25 @@ operators!(
     AssignBitwiseOr
 );
 
+impl Binary {
+    pub(super) fn is_assignment(self) -> bool {
+        matches!(
+            self,
+            Self::Assign
+                | Self::AssignMultiply
+                | Self::AssignDivide
+                | Self::AssignModulo
+                | Self::AssignPlus
+                | Self::AssignMinus
+                | Self::AssignShiftLeft
+                | Self::AssignShiftRight
+                | Self::AssignBitwiseAnd
+                | Self::AssignBitwiseXor
+                | Self::AssignBitwiseOr
+        )
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 pub enum Builtin {
@@ -2061,20 +2080,7 @@ impl Analyzer {
         let left_value = self.converted_type(&left, offset)?;
         let right_value = self.converted_type(&right, offset)?;
         let operator = Binary::from_ast(&binary.node.operator.node);
-        let assignment = matches!(
-            operator,
-            Binary::Assign
-                | Binary::AssignMultiply
-                | Binary::AssignDivide
-                | Binary::AssignModulo
-                | Binary::AssignPlus
-                | Binary::AssignMinus
-                | Binary::AssignShiftLeft
-                | Binary::AssignShiftRight
-                | Binary::AssignBitwiseAnd
-                | Binary::AssignBitwiseXor
-                | Binary::AssignBitwiseOr
-        );
+        let assignment = operator.is_assignment();
         let mut left_destination = None;
         let mut right_destination = None;
         let mut computation = None;

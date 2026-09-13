@@ -2,7 +2,7 @@
 
 use serde::Serialize;
 
-use super::{Binary, Builder, Builtin, Conversion, ExprKind, ExprUse, Unary};
+use super::{Builder, Builtin, Conversion, ExprKind, ExprUse, Unary};
 
 /// Whether Clang's ordinary-side-effect test permits scalar code generation.
 /// This test intentionally does not inspect `sizeof` or `_Alignof` operands.
@@ -115,6 +115,9 @@ impl Builder {
         }
     }
 
+    /// Summarizes Clang's syntactic side-effect gate, including dead operands.
+    /// `sizeof` and `_Alignof` operands are excluded even when their types have
+    /// runtime bounds; this gate does not determine which expressions execute.
     pub(super) fn query_effects(&self, kind: &ExprKind) -> QuerySideEffects {
         use QuerySideEffects::{Absent, Present, Unresolved};
         let operands = |values: &[ExprUse]| {
@@ -156,23 +159,9 @@ impl Builder {
                 right,
                 ..
             } => {
-                if matches!(
-                    operator,
-                    Binary::Assign
-                        | Binary::AssignMultiply
-                        | Binary::AssignDivide
-                        | Binary::AssignModulo
-                        | Binary::AssignPlus
-                        | Binary::AssignMinus
-                        | Binary::AssignShiftLeft
-                        | Binary::AssignShiftRight
-                        | Binary::AssignBitwiseAnd
-                        | Binary::AssignBitwiseXor
-                        | Binary::AssignBitwiseOr
-                ) {
+                if operator.is_assignment() {
                     Present
                 } else {
-                    // Unlike execution, this gate inspects even a dead RHS.
                     self.query_use_effects(left)
                         .combine(self.query_use_effects(right))
                 }
