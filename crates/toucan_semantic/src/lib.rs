@@ -4,7 +4,6 @@
 //! constructs return diagnostics; function bodies are checked even when a binding
 //! consumer omits their definitions from its generated API.
 
-mod alignment_names;
 mod alignof;
 mod allocation;
 mod analyze;
@@ -13,6 +12,7 @@ mod array_identity;
 mod asm;
 mod atomic;
 mod atomic_type;
+mod attribute_names;
 mod attributes;
 mod auto_type;
 mod builtin_function;
@@ -68,7 +68,6 @@ mod returns_twice;
 mod statement;
 mod sync;
 mod target_features;
-mod target_names;
 mod transparent_union;
 mod type_alignment;
 mod variadic_pack;
