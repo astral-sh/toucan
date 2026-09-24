@@ -572,6 +572,19 @@ impl<'s, 'e> Parser<'s, 'e> {
         self.node(qualifier, start)
     }
 
+    /// Pointer and array qualifier lists cannot contain an atomic type specifier.
+    /// Any following `(` belongs to the declarator or array bound instead.
+    fn declarator_type_qualifier(&mut self) -> PResult<Option<Node<TypeQualifier>>> {
+        if self.at("_Atomic") {
+            let start = self.bump()?.span.start;
+            self.node(TypeQualifier::Atomic, start).map(Some)
+        } else if self.is_type_qualifier() {
+            self.type_qualifier().map(Some)
+        } else {
+            Ok(None)
+        }
+    }
+
     fn alignment_specifier(&mut self) -> PResult<Node<AlignmentSpecifier>> {
         let start = self.position();
         self.expect("_Alignas")?;
@@ -792,8 +805,8 @@ impl<'s, 'e> Parser<'s, 'e> {
             let mut qualifiers = Vec::new();
             loop {
                 let qualifier_start = self.position();
-                let qualifier = if self.is_type_qualifier() {
-                    PointerQualifier::TypeQualifier(self.type_qualifier()?)
+                let qualifier = if let Some(qualifier) = self.declarator_type_qualifier()? {
+                    PointerQualifier::TypeQualifier(qualifier)
                 } else if self.is_calling_convention() {
                     PointerQualifier::Extension(vec![self.calling_convention()?])
                 } else if self.env.extensions_msvc && (self.at("__ptr32") || self.at("__ptr64")) {
@@ -876,8 +889,8 @@ impl<'s, 'e> Parser<'s, 'e> {
         let start = self.position();
         let mut is_static = self.eat("static")?;
         let mut qualifiers = Vec::new();
-        while self.is_type_qualifier() {
-            qualifiers.push(self.type_qualifier()?);
+        while let Some(qualifier) = self.declarator_type_qualifier()? {
+            qualifiers.push(qualifier);
         }
         if !is_static && !qualifiers.is_empty() {
             is_static = self.eat("static")?;
