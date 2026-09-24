@@ -3934,6 +3934,17 @@ impl Analyzer {
                     })))
                 }
                 ast::DerivedDeclarator::KRFunction(parameters) if parameters.is_empty() => {
+                    if matches!(
+                        self.unit.resolve(&ty)?.kind,
+                        TypeKind::Array { .. }
+                            | TypeKind::VariableArray { .. }
+                            | TypeKind::Function(_)
+                    ) {
+                        return Err(Error::new(
+                            derived.span.start,
+                            "a function cannot return an array or function",
+                        ));
+                    }
                     Type::new(TypeKind::Function(Box::new(FunctionType {
                         noreturn: false,
                         parameter_contracts: None,
