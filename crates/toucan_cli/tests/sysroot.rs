@@ -1,14 +1,23 @@
 use std::path::Path;
 use std::process::Command;
 
-fn preprocess(header: &Path, sysroot: &Path, includes: &[&Path]) -> String {
+fn preprocess(
+    header: &Path,
+    target: &str,
+    sysroot: &Path,
+    includes: &[&Path],
+    system: &[&Path],
+) -> String {
     let mut command = Command::new(env!("CARGO_BIN_EXE_toucan"));
     command
         .arg("preprocess")
         .arg(header)
-        .args(["--target", "x86_64-unknown-linux-gnu"])
+        .args(["--target", target])
         .arg("--sysroot")
         .arg(sysroot);
+    for include in system {
+        command.arg("--system-include-dir").arg(include);
+    }
     for include in includes {
         command.arg("-I").arg(include);
     }
@@ -49,7 +58,7 @@ fn repeating_sysroot_directories_with_i_keeps_them_after_user_includes() {
 
     let cases: [&[&Path]; 2] = [&[&user], &[&system, &multiarch, &user]];
     for includes in cases {
-        let source = preprocess(&header, &sysroot, includes);
+        let source = preprocess(&header, "x86_64-unknown-linux-gnu", &sysroot, includes, &[]);
         assert!(source.contains("user_regular"), "{source}");
         assert!(source.contains("system_regular"), "{source}");
         assert!(source.contains("user_architecture"), "{source}");
@@ -57,9 +66,47 @@ fn repeating_sysroot_directories_with_i_keeps_them_after_user_includes() {
         assert!(!source.contains("generic_architecture"), "{source}");
     }
 
-    let source = preprocess(&header, &sysroot, &[]);
+    let source = preprocess(&header, "x86_64-unknown-linux-gnu", &sysroot, &[], &[]);
     assert!(source.contains("system_regular"), "{source}");
     assert!(source.contains("system_architecture"), "{source}");
     assert!(!source.contains("user_"), "{source}");
     assert!(!source.contains("generic_architecture"), "{source}");
+}
+
+#[test]
+fn explicit_system_directories_keep_libc_ahead_of_compiler_resources() {
+    let directory = tempfile::tempdir().unwrap();
+    let sysroot = directory.path().join("sysroot");
+    let libc = sysroot.join("usr/include/x86_64-linux-musl");
+    let resource = directory.path().join("compiler");
+    let project = directory.path().join("project");
+    for path in [&libc, &resource, &project] {
+        std::fs::create_dir_all(path).unwrap();
+    }
+
+    let header = directory.path().join("input.h");
+    std::fs::write(
+        &header,
+        "#include <stddef.h>\n#include <wchar.h>\n#include <resource_only.h>\n#include <layer.h>\nNULL\n",
+    )
+    .unwrap();
+    std::fs::write(libc.join("stddef.h"), "#define NULL libc_null\n").unwrap();
+    std::fs::write(libc.join("wchar.h"), "#define NULL libc_null\n").unwrap();
+    std::fs::write(resource.join("stddef.h"), "#define NULL resource_null\n").unwrap();
+    std::fs::write(resource.join("resource_only.h"), "resource_header\n").unwrap();
+    std::fs::write(project.join("layer.h"), "project_header\n").unwrap();
+    std::fs::write(libc.join("layer.h"), "wrong_system_header\n").unwrap();
+
+    let source = preprocess(
+        &header,
+        "x86_64-unknown-linux-musl",
+        &sysroot,
+        &[&project],
+        &[&libc, &resource],
+    );
+    assert!(source.contains("libc_null"), "{source}");
+    assert!(source.contains("resource_header"), "{source}");
+    assert!(source.contains("project_header"), "{source}");
+    assert!(!source.contains("resource_null"), "{source}");
+    assert!(!source.contains("wrong_system_header"), "{source}");
 }

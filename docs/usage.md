@@ -41,7 +41,8 @@ See [binding generation](bindings.md) for `toucan bindgen`, or run
 
 ## Analyze headers
 
-Each command accepts `--target`, `--compiler`, `--std`, `--sysroot`, `-I`, `-D`, and `-U`.
+Each command accepts `--target`, `--compiler`, `--std`, `--sysroot`, `-I`,
+`--system-include-dir`, `-D`, and `-U`.
 Use `--compiler clang` for Clang on Linux; omitted selection preserves the target
 default. [Language modes](language-modes.md) select C90, C99, C11, or C17,
 with an ISO or GNU mode for each standard. GNU11 is the default.
@@ -70,14 +71,18 @@ uses `"Jan  1 1970"` and `"00:00:00"`. `TZ` and locale do not change these macro
 ## System headers and cross-compilation
 
 Toucan uses the selected target's data model and predefined macros, independently
-of the host. Supply headers for that target through `--sysroot` and ordered `-I`
-arguments. `--sysroot` adds `usr/include` and, on Linux, the target's multiarch
-include directory; it does not discover a compiler installation or SDK. The
+of the host. Supply project headers through ordered `-I` arguments and toolchain
+headers through ordered `--system-include-dir` arguments. Project directories are
+searched first, followed by explicit system directories and the default sysroot
+directories. If the same directory is listed in both groups, its system entry wins.
+`--sysroot` adds `usr/include` and, on Linux, the target's multiarch include
+directory; it does not discover a compiler installation or SDK. The
 [x86-64 and AArch64 musl targets](musl.md) require musl headers and preserve
 the libc environment in generated Rust target guards.
 
 For native Linux headers, `--sysroot /` selects the installed system headers. Add
-compiler resource directories with `-I` when needed. On macOS, use the installed SDK:
+compiler resource directories with `--system-include-dir` when needed. On macOS,
+use the installed SDK:
 
 ```console
 toucan check api.h --target aarch64-apple-darwin \

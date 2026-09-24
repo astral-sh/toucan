@@ -127,6 +127,9 @@ struct Input {
     /// Add an include search directory. Search order follows the argument order.
     #[arg(short = 'I', long = "include-dir")]
     include_dirs: Vec<PathBuf>,
+    /// Add a system include directory, after -I directories and before default sysroot directories.
+    #[arg(long = "system-include-dir")]
+    system_include_dirs: Vec<PathBuf>,
     /// Define NAME or NAME=VALUE before preprocessing.
     #[arg(short = 'D', long = "define")]
     defines: Vec<String>,
@@ -188,6 +191,7 @@ impl Input {
             Err(error) => return Err(error).context("invalid SOURCE_DATE_EPOCH"),
         };
         config.preprocessor.include_dirs = self.include_dirs.clone();
+        config.preprocessor.system_include_dirs = self.system_include_dirs.clone();
         config.preprocessor.max_tokens = self.max_tokens;
         if let Some(sysroot) = &self.sysroot {
             let include = sysroot.join("usr/include");

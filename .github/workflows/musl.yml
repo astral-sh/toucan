@@ -89,7 +89,7 @@ jobs:
           {
             echo "CC_${target_variable}=$RUNNER_TEMP/musl/clang"
             echo "CARGO_TARGET_${target_variable^^}_LINKER=$linker"
-            echo "BINDGEN_EXTRA_CLANG_ARGS_${target_variable}=--sysroot=/ -I$include -I$clang_include"
+            echo "BINDGEN_EXTRA_CLANG_ARGS_${target_variable}=--sysroot=/ -isystem$include -isystem$clang_include"
           } >> "$GITHUB_ENV"
       - name: Run unchanged zstd-sys build scripts and zstd consumers
         env:

@@ -16,14 +16,14 @@ The frontend does not invent a `__MUSL__` compiler macro.
 Supply a musl sysroot, including its libc headers. `--sysroot` searches
 `usr/include/x86_64-linux-musl` or `usr/include/aarch64-linux-musl`, followed by
 `usr/include`; the latter also supports sysroots without a multiarch directory.
-Explicit include directories retain their specified order. Put musl headers
-before compiler resource headers when specifying both with `-I`:
+Explicit system include directories retain their specified order. Put musl headers
+before compiler resource headers using `--system-include-dir` for both:
 
 ```console
 toucan bindgen api.h --target x86_64-unknown-linux-musl --compiler clang \
   --sysroot /opt/musl-sysroot \
-  -I /opt/musl-sysroot/usr/include/x86_64-linux-musl \
-  -I /opt/clang/lib/clang/18/include -o bindings.rs
+  --system-include-dir /opt/musl-sysroot/usr/include/x86_64-linux-musl \
+  --system-include-dir /opt/clang/lib/clang/18/include -o bindings.rs
 ```
 
 This keeps musl's `stddef.h` ahead of the compiler's copy while making resource
