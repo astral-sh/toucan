@@ -85,7 +85,7 @@ impl Parser<'_> {
         let mut left = self.unary(evaluate)?;
         loop {
             if minimum == 0 && self.take("?") {
-                let then = self.expression(0, evaluate && left.truth())?;
+                let then = self.comma_expression(evaluate && left.truth())?;
                 if !self.take(":") {
                     return Err("expected `:` in conditional expression".into());
                 }
@@ -132,6 +132,19 @@ impl Parser<'_> {
         Ok(left)
     }
 
+    /// The middle conditional operand and parenthesized expressions admit commas;
+    /// integer constant expressions permit them only in unevaluated subexpressions.
+    fn comma_expression(&mut self, evaluate: bool) -> Result<Value, String> {
+        let mut value = self.expression(0, evaluate)?;
+        while self.take(",") {
+            if evaluate {
+                return Err("comma operator in evaluated #if subexpression".into());
+            }
+            value = self.expression(0, false)?;
+        }
+        Ok(value)
+    }
+
     fn unary(&mut self, evaluate: bool) -> Result<Value, String> {
         if self.depth >= 128 {
             return Err("#if expression nesting limit exceeded".into());
@@ -173,7 +186,7 @@ impl Parser<'_> {
             });
         }
         if self.take("(") {
-            let value = self.expression(0, evaluate)?;
+            let value = self.comma_expression(evaluate)?;
             if !self.take(")") {
                 return Err("expected `)` in #if".into());
             }
