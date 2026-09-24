@@ -98,15 +98,25 @@ impl Expansion<'_> {
             if token.text == "_Pragma" {
                 let previous_location = self.location;
                 self.location = Some((token.line, token.column));
-                if pending.pop_front().is_none_or(|token| token.text != "(") {
+                // Each token of the operator can come from macro expansion,
+                // including either parenthesis. Keep the remaining rescan stream
+                // intact so the resulting pragma precedes later macro expansion.
+                if self
+                    .expand_first(pending)?
+                    .is_none_or(|token| token.text != "(")
+                {
                     return Err("_Pragma requires a parenthesized string literal".into());
                 }
-                let (arguments, _, _) = arguments(pending, 1, false)?;
-                let argument = self.expand(arguments.into_iter().next().expect("one argument"))?;
-                let [literal] = argument.as_slice() else {
+                let Some(literal) = self.expand_first(pending)? else {
                     return Err("_Pragma requires exactly one string literal".into());
                 };
-                let payload = pragma_text(literal)?;
+                let payload = pragma_text(&literal)?;
+                if self
+                    .expand_first(pending)?
+                    .is_none_or(|token| token.text != ")")
+                {
+                    return Err("_Pragma requires exactly one string literal".into());
+                }
                 let payload = lex_with_scope(
                     &replace_comments(&payload, self.config.line_comments)?,
                     self.config.scope_punctuator,
