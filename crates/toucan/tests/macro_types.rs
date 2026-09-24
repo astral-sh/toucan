@@ -1,6 +1,45 @@
 use std::path::Path;
 
-use toucan::{BindingOptions, Config, MacroType, Target};
+use toucan::{BindingOptions, CompilerProfile, Config, MacroType, Target};
+
+#[test]
+fn bundled_limits_preserve_promoted_c_integer_types_in_bindings() {
+    let header = r#"
+#include <limits.h>
+_Static_assert(_Generic(UCHAR_MAX, int: 1, default: 0), "unsigned char promotes to int");
+_Static_assert(_Generic(USHRT_MAX, int: 1, default: 0), "unsigned short promotes to int");
+_Static_assert(_Generic(CHAR_MAX, int: 1, default: 0), "plain char promotes to int");
+_Static_assert(_Generic(UINT_MAX, unsigned int: 1, default: 0), "unsigned int stays unsigned");
+"#;
+    for profile in CompilerProfile::ALL {
+        let mut config = Config::with_profile(profile);
+        config.preprocessor.allow_filesystem = false;
+        let compilation = toucan::parse_source(Path::new("limits.h"), header, &config)
+            .unwrap_or_else(|error| panic!("{profile:?}: {error}"));
+        let (source, report) = compilation
+            .bindings(&BindingOptions {
+                allowlist: ["UCHAR_MAX", "USHRT_MAX", "CHAR_MAX", "UINT_MAX"]
+                    .map(str::to_owned)
+                    .to_vec(),
+                ..BindingOptions::default()
+            })
+            .unwrap();
+        let char_max = if profile.target().char_is_signed() {
+            127
+        } else {
+            255
+        };
+        for declaration in [
+            "pub const UCHAR_MAX: ::core::primitive::i32 = 255;".to_owned(),
+            "pub const USHRT_MAX: ::core::primitive::i32 = 65535;".to_owned(),
+            format!("pub const CHAR_MAX: ::core::primitive::i32 = {char_max};"),
+            "pub const UINT_MAX: ::core::primitive::u32 = 4294967295;".to_owned(),
+        ] {
+            assert!(source.contains(&declaration), "{profile:?}: {source}");
+        }
+        assert_eq!(report.integer_macros, 4, "{profile:?}");
+    }
+}
 
 #[test]
 fn unsigned_macro_policy_preserves_original_types_and_full_values() {
