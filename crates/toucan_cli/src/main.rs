@@ -203,10 +203,10 @@ impl Input {
             if let Some(multiarch) = multiarch {
                 config
                     .preprocessor
-                    .include_dirs
+                    .system_include_dirs
                     .push(include.join(multiarch));
             }
-            config.preprocessor.include_dirs.push(include);
+            config.preprocessor.system_include_dirs.push(include);
         }
         let mut defines = arguments
             .indices_of("defines")
