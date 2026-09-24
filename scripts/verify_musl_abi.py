@@ -87,7 +87,7 @@ def verify(args: argparse.Namespace) -> dict:
             )
         include_args = []
         for path in args.include_dir:
-            include_args.extend(["-I", path.resolve()])
+            include_args.extend(["--system-include-dir", path.resolve()])
         frontend = [
             args.toucan.resolve(),
             "--target",
@@ -238,7 +238,13 @@ def main() -> None:
     parser.add_argument("--target", choices=TARGETS, required=True)
     parser.add_argument("--compiler", choices=("gcc", "clang"), required=True)
     parser.add_argument("--sysroot", type=Path, required=True)
-    parser.add_argument("--include-dir", type=Path, action="append", default=[])
+    parser.add_argument(
+        "--include-dir",
+        type=Path,
+        action="append",
+        default=[],
+        help="ordered musl and compiler-resource system header directories",
+    )
     parser.add_argument(
         "--cc", required=True, help="C compiler and flags, parsed with shell quoting"
     )

@@ -3,7 +3,9 @@
 `PreprocessorConfig.include_dirs` contains regular search roots; the new
 `system_include_dirs` contains system roots. Regular roots precede system roots.
 The Builder maps `-I` to regular roots and `-isystem` and its configured sysroot
-headers to system roots.
+headers to system roots. The native `toucan` CLI uses `-I` for regular roots and
+`--system-include-dir` for explicit system roots, before the configured sysroot
+headers.
 
 At the start of each preprocessing run, roots are resolved by physical directory
 identity. Duplicate directories are searched once. If a directory appears in both
