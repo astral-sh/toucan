@@ -93,6 +93,70 @@ fn declarations_scopes_and_constraints_have_seven_profile_parity() {
     }
 }
 
+const INVALID_NON_PROTOTYPE_RESULTS: &[&str] = &[
+    "int returns_array()[3];",
+    "int returns_function()();",
+    "typedef int Array[3]; Array returns_array();",
+    "typedef int Function(void); Function returns_function();",
+    "int caller(void) { int returns_array()[3]; return 0; }",
+    "int accepts_callback(int callback()[3]);",
+];
+
+const VALID_NON_PROTOTYPE_RESULTS: &[&str] = &[
+    "int returns_value();",
+    "int (*returns_array_pointer())[3];",
+    "int (*returns_function_pointer())(void);",
+];
+
+#[test]
+fn non_prototype_declarations_reject_array_and_function_results() {
+    for profile in CompilerProfile::ALL {
+        for source in INVALID_NON_PROTOTYPE_RESULTS {
+            let error = parity(source, profile).unwrap_err();
+            assert_eq!(
+                error.message, "a function cannot return an array or function",
+                "{profile:?}: {source}"
+            );
+        }
+
+        for source in VALID_NON_PROTOTYPE_RESULTS {
+            parity(source, profile).unwrap_or_else(|e| panic!("{profile:?}: {source}: {e}"));
+        }
+    }
+}
+
+#[test]
+#[ignore = "requires native GCC and Clang"]
+fn non_prototype_function_results_match_native_compilers() {
+    use std::process::Command;
+
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("return-type.c");
+    let gcc = std::env::var("TOUCAN_GCC").unwrap_or_else(|_| "gcc".into());
+    for compiler in [gcc.as_str(), "clang"] {
+        for (sources, accept) in [
+            (INVALID_NON_PROTOTYPE_RESULTS, false),
+            (VALID_NON_PROTOTYPE_RESULTS, true),
+        ] {
+            for source in sources {
+                std::fs::write(&path, format!("{source}\n")).unwrap();
+                let output = Command::new(compiler)
+                    .args(["-std=c17", "-fsyntax-only"])
+                    .arg(&path)
+                    .output()
+                    .unwrap();
+                assert_regular_compiler_result(&output, compiler, source);
+                assert_eq!(
+                    output.status.success(),
+                    accept,
+                    "{compiler}: {source}: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
+            }
+        }
+    }
+}
+
 #[test]
 fn entry_types_and_conversions_preserve_the_adjusted_parameter_objects() {
     let source = "int f(a,b) float b;unsigned char a;{return a+(int)b;}";
