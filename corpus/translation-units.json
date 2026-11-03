@@ -16,7 +16,7 @@
     "zstd": {
       "version": "1.5.7",
       "archive_ref": "ac66b19e6bd6b83238bf008eecc1298105298532",
-      "sha256": "71bf8072ac109e90d9e48a939546a84d3eac33e7e8d4156b826f455de3122b67",
+      "sha256": "9b70bbc1f5750dd895765e376e78811f3c47065cc1c782c09f4bcea5d137c7d0",
       "commit": "f8745da6ff1ad1e7bab384bd1f9d742439278e99"
     },
     "libgit2": {

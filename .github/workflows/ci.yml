@@ -43,6 +43,8 @@ jobs:
             || '["ubuntu-24.04", "ubuntu-24.04-arm"]') }}
     runs-on: ${{ github.repository_owner == 'astral-sh' && matrix.os == 'ubuntu-24.04' && 'github-ubuntu-24.04-x86_64-4' || matrix.os }}
     steps:
+      - if: runner.os == 'macOS'
+        uses: astral-sh/github-actions/demudhra@7aa50a3def9f5428c532b0ae972d1e5b357de5a5 # 2026.11.03.0
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
         with:
@@ -127,6 +129,8 @@ jobs:
         os: ${{ fromJSON(inputs.macos && '["macos-15"]' || '["ubuntu-24.04", "windows-2025"]') }}
     runs-on: ${{ github.repository_owner == 'astral-sh' && matrix.os == 'ubuntu-24.04' && 'github-ubuntu-24.04-x86_64-4' || matrix.os }}
     steps:
+      - if: runner.os == 'macOS'
+        uses: astral-sh/github-actions/demudhra@7aa50a3def9f5428c532b0ae972d1e5b357de5a5 # 2026.11.03.0
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
         with:
