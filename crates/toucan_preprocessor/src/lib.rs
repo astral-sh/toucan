@@ -977,7 +977,7 @@ impl Preprocessor {
                 self.config.max_tokens.saturating_sub(self.tokens),
                 self.config.scope_punctuator,
             )
-            .map_err(&fail)?;
+            .map_err(fail)?;
             for token in &mut tokens {
                 token.line =
                     (source.line_at(start + token.offset) as i64 + line_adjustment) as usize;
@@ -993,7 +993,7 @@ impl Preprocessor {
                                 source.line_at(start + token.offset),
                                 self.config.max_source_bytes,
                             )
-                            .map_err(&fail)?,
+                            .map_err(fail)?,
                     );
                 }
             }
@@ -1043,9 +1043,9 @@ impl Preprocessor {
                         false
                     } else if directive.text == "if" {
                         self.condition(&logical_path, input, include_origin, rest, output)
-                            .map_err(&fail)?
+                            .map_err(fail)?
                     } else {
-                        let name = identifier(rest).map_err(&fail)?;
+                        let name = identifier(rest).map_err(fail)?;
                         let defined = self.is_defined(name);
                         if directive.text == "ifdef" {
                             defined
@@ -1069,7 +1069,7 @@ impl Preprocessor {
                     let matches = condition.can_take_branch
                         && self
                             .condition(&logical_path, input, include_origin, rest, output)
-                            .map_err(&fail)?;
+                            .map_err(fail)?;
                     condition.active = matches;
                     condition.can_take_branch &= !matches;
                 }
@@ -1106,7 +1106,7 @@ impl Preprocessor {
                     } else {
                         None
                     };
-                    self.define(rest, location).map_err(&fail)?;
+                    self.define(rest, location).map_err(fail)?;
                     if let Some(definitions) = &mut self.macro_definitions {
                         let name = &rest[0];
                         definitions
@@ -1120,7 +1120,7 @@ impl Preprocessor {
                                 ),
                                 self.config.max_source_bytes,
                             )
-                            .map_err(&fail)?;
+                            .map_err(fail)?;
                     }
                     if let Some(origins) = &mut self.file_origins {
                         let name = &rest[0];
@@ -1134,7 +1134,7 @@ impl Preprocessor {
                     }
                 }
                 "undef" => {
-                    let name = identifier(rest).map_err(&fail)?;
+                    let name = identifier(rest).map_err(fail)?;
                     if is_builtin(name) {
                         return Err(fail("cannot undefine a builtin macro".into()));
                     }
@@ -1160,8 +1160,8 @@ impl Preprocessor {
                         }
                         Err(_) => {
                             let expanded =
-                                self.expand(&logical_path, rest.to_vec()).map_err(&fail)?;
-                            header_name(&expanded, false).map_err(&fail)?
+                                self.expand(&logical_path, rest.to_vec()).map_err(fail)?;
+                            header_name(&expanded, false).map_err(fail)?
                         }
                     };
                     let next = directive.text == "include_next";
@@ -1241,7 +1241,7 @@ impl Preprocessor {
                     }
                 }
                 "line" => {
-                    let expanded = self.expand(&logical_path, rest.to_vec()).map_err(&fail)?;
+                    let expanded = self.expand(&logical_path, rest.to_vec()).map_err(fail)?;
                     let Some(number) = expanded.first() else {
                         return Err(fail("#line requires a line number".into()));
                     };
@@ -1256,20 +1256,20 @@ impl Preprocessor {
                         if file.kind != Kind::String || !file.text.starts_with('"') {
                             return Err(fail("#line filename must be a string literal".into()));
                         }
-                        logical_path = PathBuf::from(line_filename(&file.text).map_err(&fail)?);
+                        logical_path = PathBuf::from(line_filename(&file.text).map_err(fail)?);
                     }
                     line_adjustment = number as i64 - source.line_at(offset) as i64;
                     continue;
                 }
                 _ if directive.kind == Kind::Number => {
-                    let marker = line_marker(&tokens[1..]).map_err(&fail)?;
+                    let marker = line_marker(&tokens[1..]).map_err(fail)?;
                     if self.config.documentation.is_some() {
                         self.documentation_system = marker.system;
                         if let (Some(docs), Some(id)) =
                             (&mut self.documentation, tokens[0].doc_origin)
                         {
                             docs.system_origin(id, marker.system, self.config.max_source_bytes)
-                                .map_err(&fail)?;
+                                .map_err(fail)?;
                         }
                     }
                     match marker.transition {
